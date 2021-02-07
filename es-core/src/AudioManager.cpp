@@ -11,7 +11,7 @@
 AudioManager* AudioManager::sInstance = NULL;
 std::vector<std::shared_ptr<Sound>> AudioManager::sSoundVector;
 
-AudioManager::AudioManager() : mInitialized(false), mCurrentMusic(nullptr)
+AudioManager::AudioManager() : mInitialized(false), mCurrentMusic(nullptr), mMusicVolume(MIX_MAX_VOLUME)
 {
 	init();
 }
@@ -42,7 +42,7 @@ void AudioManager::init()
 {
 	if(mInitialized)
 		return;
-
+		
 	mMusicVolume = 0;
 
 	if(SDL_InitSubSystem(SDL_INIT_AUDIO) != 0)
@@ -261,7 +261,9 @@ void AudioManager::update(int deltaTime)
 	if(maxVol > 0 && minVol == 0)
 		minVol = 1;
 
-	/*if (sInstance->mMusicVolume > minVol)
+	/* TODO: This is part of unimplemented feature that would
+	 * lower the music volume if a video snap was playing
+	 * if (sInstance->mMusicVolume > minVol)
 	{
 		sInstance->mMusicVolume -= deltaVol;
 		if (sInstance->mMusicVolume < minVol)

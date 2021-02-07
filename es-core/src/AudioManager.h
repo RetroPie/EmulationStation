@@ -15,7 +15,7 @@ class AudioManager
 {
 private:
 	AudioManager();
-	
+
 	static std::vector<std::shared_ptr<Sound>> sSoundVector;
 	static AudioManager* sInstance;
 
@@ -23,7 +23,7 @@ private:
 	void getMusicIn(const std::string &path, std::vector<std::string>& all_matching_files);
 	void playMusic(std::string path);
 	static void musicEnd_callback();
-	
+
 	bool mInitialized;
 
 public:
@@ -44,6 +44,10 @@ public:
 	void stopMusic(bool fadeOut = true);
 
 	virtual ~AudioManager();
+
+	float mMusicVolume;
+	static void update(int deltaTime);
+	static int getMaxMusicVolume();
 };
 
 #endif // ES_CORE_AUDIO_MANAGER_H

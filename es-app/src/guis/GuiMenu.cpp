@@ -91,8 +91,16 @@ void GuiMenu::openSoundSettings()
 	// volume
 	auto volume = std::make_shared<SliderComponent>(mWindow, 0.f, 100.f, 1.f, "%");
 	volume->setValue((float)VolumeControl::getInstance()->getVolume());
-	s->addWithLabel("SYSTEM VOLUME", volume);
-	s->addSaveFunc([volume] { VolumeControl::getInstance()->setVolume((int)Math::round(volume->getValue())); });
+	volume->setOnValueChanged([](const float &newVal) { VolumeControl::getInstance()->setVolume((int)Math::round(newVal)); });
+	s->addWithLabel("AUDIO VOLUME", volume);
+	s->addSaveFunc([this, volume] { VolumeControl::getInstance()->setVolume((int)Math::round(volume->getValue())); });
+		
+	/*TODO: This is a separate volume slider for the Music Player
+	auto musicVolume = std::make_shared<SliderComponent>(mWindow, 0.f, 100.f, 1.f, "%");
+	musicVolume->setValue(Settings::getInstance()->getInt("MusicVolume"));		
+	musicVolume->setOnValueChanged([](const float &newVal) { Settings::getInstance()->setInt("MusicVolume", (int)round(newVal)); });
+	s->addWithLabel("MUSIC VOLUME", musicVolume);
+	*/
 
 	if (UIModeController::getInstance()->isUIModeFull())
 	{

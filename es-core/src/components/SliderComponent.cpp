@@ -28,7 +28,7 @@ bool SliderComponent::input(InputConfig* config, Input input)
 
 		mMoveRate = input.value ? -mSingleIncrement : 0;
 		mMoveAccumulator = -MOVE_REPEAT_DELAY;
-		return true;
+		return input.value;
 	}
 	if(config->isMappedLike("right", input))
 	{
@@ -37,7 +37,7 @@ bool SliderComponent::input(InputConfig* config, Input input)
 
 		mMoveRate = input.value ? mSingleIncrement : 0;
 		mMoveAccumulator = -MOVE_REPEAT_DELAY;
-		return true;
+		return input.value;
 	}
 
 	return GuiComponent::input(config, input);
@@ -81,6 +81,9 @@ void SliderComponent::render(const Transform4x4f& parentTrans)
 
 void SliderComponent::setValue(float value)
 {
+	if (mValue == value)
+		return;
+
 	mValue = value;
 	if(mValue < mMin)
 		mValue = mMin;
@@ -88,6 +91,9 @@ void SliderComponent::setValue(float value)
 		mValue = mMax;
 
 	onValueChanged();
+	
+	if (mValueChanged)
+		mValueChanged(mValue);
 }
 
 float SliderComponent::getValue()

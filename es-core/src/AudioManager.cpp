@@ -11,7 +11,7 @@
 AudioManager* AudioManager::sInstance = NULL;
 std::vector<std::shared_ptr<Sound>> AudioManager::sSoundVector;
 
-AudioManager::AudioManager() : mInitialized(false), mCurrentMusic(nullptr), mMusicVolume(MIX_MAX_VOLUME)
+AudioManager::AudioManager() : mInitialized(false), mCurrentMusic(nullptr), mMusicVolume(Settings::getInstance()->getInt("MusicVolume"))
 {
 	init();
 }
@@ -42,8 +42,6 @@ void AudioManager::init()
 {
 	if(mInitialized)
 		return;
-		
-	mMusicVolume = 0;
 
 	if(SDL_InitSubSystem(SDL_INIT_AUDIO) != 0)
 	{
@@ -252,18 +250,21 @@ void AudioManager::update(int deltaTime)
 	if(sInstance == nullptr || !sInstance->mInitialized || !Settings::getInstance()->getBool("EnableMusic"))
 		return;
 
+	Mix_VolumeMusic(Settings::getInstance()->getInt("MusicVolume"));
+
+	/* TODO: This is part of unimplemented feature that would
+	 * lower the music volume if a video snap was playing
+
 	float deltaVol = deltaTime / 8.0f;
 
-//	#define MINVOL 5
+	//	#define MINVOL 5
 
 	int maxVol = getMaxMusicVolume();
 	int minVol = maxVol / 20;
 	if(maxVol > 0 && minVol == 0)
 		minVol = 1;
 
-	/* TODO: This is part of unimplemented feature that would
-	 * lower the music volume if a video snap was playing
-	 * if (sInstance->mMusicVolume > minVol)
+	if (sInstance->mMusicVolume > minVol)
 	{
 		sInstance->mMusicVolume -= deltaVol;
 		if (sInstance->mMusicVolume < minVol)
@@ -278,5 +279,6 @@ void AudioManager::update(int deltaTime)
 			sInstance->mMusicVolume = maxVol;
 
 		Mix_VolumeMusic((int)sInstance->mMusicVolume);
-	}*/
+	}
+	*/
 }

@@ -102,7 +102,12 @@ void SystemData::populateFolder(FileData* folder)
 		// skip hidden files and folders
 		if(!showHidden && Utils::FileSystem::isHidden(filePath))
 			continue;
-
+		
+		// skip ignored files and folders
+		std::string fileName = Utils::String::toLower(Utils::FileSystem::getFileName(filePath));
+		if(std::find(mEnvData->mFilesToIgnore.cbegin(), mEnvData->mFilesToIgnore.cend(), fileName) != mEnvData->mFilesToIgnore.cend())
+			continue;
+		
 		//this is a little complicated because we allow a list of extensions to be defined (delimited with a space)
 		//we first get the extension of the file itself:
 		extension = Utils::String::toLower(Utils::FileSystem::getExtension(filePath));
@@ -189,6 +194,27 @@ SystemData* SystemData::loadSystem(pugi::xml_node system)
 			extensions.push_back(xt);
 	}
 
+	list.clear();
+
+	list = readList(system.child("ignore").text().get());
+	std::vector<std::string> ignores;
+
+	for (auto ignore = list.cbegin(); ignore != list.cend(); ignore++)
+	{
+		std::string ig = Utils::String::toLower(*ignore);
+
+
+
+		ig = Utils::String::replace(ig, "\"", "");
+
+
+
+		if (std::find(ignores.begin(), ignores.end(), ig) == ignores.end())
+			ignores.push_back(ig);
+	}
+
+	list.clear();
+
 	cmd = system.child("command").text().get();
 
 	// platform id list
@@ -239,6 +265,7 @@ SystemData* SystemData::loadSystem(pugi::xml_node system)
 	SystemEnvironmentData* envData = new SystemEnvironmentData;
 	envData->mStartPath = path;
 	envData->mSearchExtensions = extensions;
+	envData->mFilesToIgnore = ignores;
 	envData->mLaunchCommand = cmd;
 	envData->mPlatformIds = platformIds;
 
@@ -408,6 +435,10 @@ void SystemData::writeExampleConfig(const std::string& path)
 			"		<!-- A list of extensions to search for, delimited by any of the whitespace characters (\", \\r\\n\\t\").\n"
 			"		You MUST include the period at the start of the extension! It's also case sensitive. -->\n"
 			"		<extension>.nes .NES</extension>\n"
+			"\n"
+			"		<!-- A list of filenames to ignore, delimited by any of the whitespace characters (\", \\r\\n\\t\").\n"
+			"		You MUST wrap each filename in double quotes (since some filenames contain spaces). Not case sensitive. -->\n"
+			"		<ignore>\"filename1.bin\" \"filename2.iso\" \"filename3.zip\"</ignore>\n"
 			"\n"
 			"		<!-- The shell command executed when a game is selected. A few special tags are replaced if found in a command:\n"
 			"		%ROM% is replaced by a bash-special-character-escaped absolute path to the ROM.\n"

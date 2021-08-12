@@ -46,6 +46,8 @@ CollectionSystemManager::CollectionSystemManager(Window* window) : mWindow(windo
 	mCollectionEnvData->mStartPath = "";
 	std::vector<std::string> exts;
 	mCollectionEnvData->mSearchExtensions = exts;
+	std::vector<std::string> ignores;
+	mCollectionEnvData->mFilesToIgnore = ignores;
 	mCollectionEnvData->mLaunchCommand = "";
 	std::vector<PlatformIds::PlatformId> allPlatformIds;
 	allPlatformIds.push_back(PlatformIds::PLATFORM_IGNORE);

@@ -407,7 +407,12 @@ Reference
 	- A header image.  If a non-empty `path` is specified, `text name="logoText"` will be hidden and this image will be, by default, displayed roughly in its place.
 * `textlist name="gamelist"` - ALL
 	- The gamelist.  `primaryColor` is for games, `secondaryColor` is for folders.  Centered by default.
-
+* `sound name="launch"` - ALL
+	- The sound to be played when launching a game or entering a folder
+* `sound name="back"` - ALL
+	- The sound to be played when going back to system menu or exiting a folder
+* `sound name="scroll"` - ALL
+	- The sound to be played when scrolling the game list
 ---
 
 #### detailed
@@ -421,6 +426,12 @@ Reference
 	- A header image.  If a non-empty `path` is specified, `text name="logoText"` will be hidden and this image will be, by default, displayed roughly in its place.
 * `textlist name="gamelist"` - ALL
 	- The gamelist.  `primaryColor` is for games, `secondaryColor` is for folders.  Left aligned by default.
+* `sound name="launch"` - ALL
+	- The sound to be played when launching a game or entering a folder
+* `sound name="back"` - ALL
+	- The sound to be played when going back to system menu or exiting a folder
+* `sound name="scroll"` - ALL
+	- The sound to be played when scrolling the game list
 
 * Metadata
 	* Labels
@@ -470,6 +481,12 @@ Reference
 	- A header image.  If a non-empty `path` is specified, `text name="logoText"` will be hidden and this image will be, by default, displayed roughly in its place.
 * `textlist name="gamelist"` - ALL
 	- The gamelist.  `primaryColor` is for games, `secondaryColor` is for folders.  Left aligned by default.
+* `sound name="launch"` - ALL
+	- The sound to be played when launching a game or entering a folder
+* `sound name="back"` - ALL
+	- The sound to be played when going back to system menu or exiting a folder
+* `sound name="scroll"` - ALL
+	- The sound to be played when scrolling the game list
 
 * Metadata
 	* Labels
@@ -529,6 +546,12 @@ Reference
     - Note that many of the default gridtile parameters change the selected gridtile parameters if they are not explicitly set by the theme. For example, changing the background image of the default gridtile also change the background image of the selected gridtile. Refer to the gridtile documentation for more informations.
 * `gridtile name="selected"` - ALL
     - See default gridtile description right above.
+* `sound name="launch"` - ALL
+	- The sound to be played when launching a game or entering a folder
+* `sound name="back"` - ALL
+	- The sound to be played when going back to system menu or exiting a folder
+* `sound name="scroll"` - ALL
+	- The sound to be played when scrolling the game list
 
 * Metadata
 	* Labels
@@ -578,6 +601,10 @@ Reference
 	- A logo text, to be displayed system name in the system logo carousel when no logo is available.
 * `text name="systemInfo"` - ALL
 	- Displays details of the system currently selected in the carousel.
+* `sound name="launch"` - ALL
+	- The sound to be played when a system is selected
+* `sound name="scroll"` - ALL
+	- The sound to be played when scrolling the system list
 * You can use extra elements (elements with `extra="true"`) to add your own backgrounds, etc.  They will be displayed behind the carousel, and scroll relative to the carousel.
 
 
@@ -760,7 +787,7 @@ Can be created as an extra.
 * `fontPath` - type: PATH.
 * `fontSize` - type: RESOLUTION_FLOAT.
 * `scrollSound` - type: PATH.
-	- Sound that is played when the list is scrolled.
+	- **Deprecated**: Use global property `sound name="scroll"` instead. Sound that is played when the list is scrolled.
 * `alignment` - type: STRING.
 	- Valid values are "left", "center", or "right".  Controls alignment on the X axis.
 * `horizontalMargin` - type: RESOLUTION_FLOAT.

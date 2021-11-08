@@ -7,6 +7,7 @@
 #include "components/IList.h"
 #include "resources/TextureResource.h"
 #include "GridTileComponent.h"
+#include "Sound.h"
 
 #define EXTRAITEMS 2
 
@@ -63,6 +64,7 @@ public:
 	ImageSource	getImageSource() { return mImageSource; };
 
 protected:
+	virtual void onScroll(int /*amt*/) { if(!mScrollSound.empty()) Sound::get(mScrollSound)->play(); }
 	virtual void onCursorChanged(const CursorState& state) override;
 
 private:
@@ -91,6 +93,7 @@ private:
 	Vector2f mMargin;
 	Vector2f mTileSize;
 	Vector2i mGridDimension;
+	std::string mScrollSound;
 	std::shared_ptr<ThemeData> mTheme;
 	std::vector< std::shared_ptr<GridTileComponent> > mTiles;
 
@@ -299,6 +302,8 @@ void ImageGridComponent<T>::applyTheme(const std::shared_ptr<ThemeData>& theme, 
 			mAnimate = (elem->get<bool>("animate"));
 		else
 			mAnimate = true;
+
+		mScrollSound = Sound::getPath(theme, view, "scroll");
 
 		if (elem->has("gameImage"))
 		{

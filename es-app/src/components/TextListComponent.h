@@ -418,7 +418,8 @@ void TextListComponent<T>::applyTheme(const std::shared_ptr<ThemeData>& theme, c
 	const float selectorHeight = Math::max(mFont->getHeight(1.0), (float)mFont->getSize()) * mLineSpacing;
 	setSelectorHeight(selectorHeight);
 
-	if(properties & SOUND && elem->has("scrollSound"))
+	mScrollSound = Sound::getPath(theme, view, "scroll");
+	if(mScrollSound.empty() && properties & SOUND && elem->has("scrollSound"))
 		mScrollSound = elem->get<std::string>("scrollSound");
 
 	if(properties & ALIGNMENT)

@@ -19,7 +19,7 @@ std::shared_ptr<Sound> Sound::get(const std::string& path)
 	return sound;
 }
 
-std::shared_ptr<Sound> Sound::getFromTheme(const std::shared_ptr<ThemeData>& theme, const std::string& view, const std::string& element)
+const std::string Sound::getPath(const std::shared_ptr<ThemeData>& theme, const std::string& view, const std::string& element)
 {
 	LOG(LogInfo) << " req sound [" << view << "." << element << "]";
 
@@ -27,10 +27,15 @@ std::shared_ptr<Sound> Sound::getFromTheme(const std::shared_ptr<ThemeData>& the
 	if(!elem || !elem->has("path"))
 	{
 		LOG(LogInfo) << "   (missing)";
-		return get("");
+		return "";
 	}
 
-	return get(elem->get<std::string>("path"));
+	return elem->get<std::string>("path");
+}
+
+std::shared_ptr<Sound> Sound::getFromTheme(const std::shared_ptr<ThemeData>& theme, const std::string& view, const std::string& element)
+{
+	return get(getPath(theme, view, element));
 }
 
 Sound::Sound(const std::string & path) : mSampleData(NULL), mSamplePos(0), mSampleLength(0), playing(false)

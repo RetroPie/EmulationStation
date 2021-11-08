@@ -8,6 +8,7 @@
 #include "Settings.h"
 #include "SystemData.h"
 #include "Window.h"
+#include "Sound.h"
 
 // buffer values for scrolling velocity (left, stopped, right)
 const int logoBuffersLeft[] = { -5, -2, -1 };
@@ -151,12 +152,14 @@ bool SystemView::input(InputConfig* config, Input input)
 		case VERTICAL_WHEEL:
 			if (config->isMappedLike("up", input))
 			{
-				listInput(-1);
+				if (listInput(-1))
+					Sound::get(mScrollSound)->play();
 				return true;
 			}
 			if (config->isMappedLike("down", input))
 			{
-				listInput(1);
+				if (listInput(1))
+					Sound::get(mScrollSound)->play();
 				return true;
 			}
 			break;
@@ -165,12 +168,14 @@ bool SystemView::input(InputConfig* config, Input input)
 		default:
 			if (config->isMappedLike("left", input))
 			{
-				listInput(-1);
+				if (listInput(-1))
+					Sound::get(mScrollSound)->play();
 				return true;
 			}
 			if (config->isMappedLike("right", input))
 			{
-				listInput(1);
+				if (listInput(1))
+					Sound::get(mScrollSound)->play();
 				return true;
 			}
 			break;
@@ -178,6 +183,7 @@ bool SystemView::input(InputConfig* config, Input input)
 
 		if(config->isMappedTo("a", input))
 		{
+			Sound::get(mLaunchSound)->play();
 			stopScrolling();
 			ViewController::get()->goToGameList(getSelected());
 			return true;
@@ -186,15 +192,18 @@ bool SystemView::input(InputConfig* config, Input input)
 		{
 			// get random system
 			// go to system
-			setCursor(SystemData::getRandomSystem());
+			if (setCursor(SystemData::getRandomSystem()))
+				Sound::get(mScrollSound)->play();
 			return true;
 		}
 	}else{
 		if(config->isMappedLike("left", input) ||
 			config->isMappedLike("right", input) ||
 			config->isMappedLike("up", input) ||
-			config->isMappedLike("down", input))
-			listInput(0);
+			config->isMappedLike("down", input)) {
+			if (listInput(0))
+				Sound::get(mScrollSound)->play();
+		}
 		if(!UIModeController::getInstance()->isUIModeKid() && config->isMappedTo("select", input) && Settings::getInstance()->getBool("ScreenSaverControls"))
 		{
 			mWindow->startScreenSaver();
@@ -418,6 +427,9 @@ void  SystemView::getViewElements(const std::shared_ptr<ThemeData>& theme)
 	const ThemeData::ThemeElement* sysInfoElem = theme->getElement("system", "systemInfo", "text");
 	if (sysInfoElem)
 		mSystemInfo.applyTheme(theme, "system", "systemInfo", ThemeFlags::ALL);
+
+	mScrollSound = Sound::getPath(theme, "system", "scroll");
+	mLaunchSound = Sound::getPath(theme, "system", "launch");
 
 	mViewNeedsReload = false;
 }

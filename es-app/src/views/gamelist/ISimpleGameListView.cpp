@@ -92,6 +92,7 @@ bool ISimpleGameListView::input(InputConfig* config, Input input)
 				// it's a folder
 				if(cursor->getChildren().size() > 0)
 				{
+					Sound::getFromTheme(getTheme(), getName(), "launch")->play();
 					mCursorStack.push(cursor);
 					populateList(cursor->getChildrenListToDisplay());
 					FileData* cursor = getCursor();
@@ -102,12 +103,12 @@ bool ISimpleGameListView::input(InputConfig* config, Input input)
 			return true;
 		}else if(config->isMappedTo("b", input))
 		{
+			Sound::getFromTheme(getTheme(), getName(), "back")->play();
 			if(mCursorStack.size())
 			{
 				populateList(mCursorStack.top()->getParent()->getChildren());
 				setCursor(mCursorStack.top());
 				mCursorStack.pop();
-				Sound::getFromTheme(getTheme(), getName(), "back")->play();
 			}else{
 				onFocusLost();
 				SystemData* systemToView = getCursor()->getSystem();

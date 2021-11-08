@@ -87,6 +87,8 @@ private:
 
 	bool mViewNeedsReload;
 	bool mShowing;
+	std::string mScrollSound;
+	std::string mLaunchSound;
 };
 
 #endif // ES_APP_VIEWS_SYSTEM_VIEW_H

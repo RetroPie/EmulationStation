@@ -44,7 +44,11 @@ MameNames::MameNames()
 	LOG(LogInfo) << "Parsing XML file \"" << xmlpath << "\"...";
 
 	pugi::xml_document doc;
+#if defined(_WIN32)
+	pugi::xml_parse_result result = doc.load_file(Utils::FileSystem::convertToWideString(xmlpath).c_str());
+#else
 	pugi::xml_parse_result result = doc.load_file(xmlpath.c_str());
+#endif
 
 	if(!result)
 	{
@@ -66,7 +70,11 @@ MameNames::MameNames()
 
 	LOG(LogInfo) << "Parsing XML file \"" << xmlpath << "\"...";
 
+#if defined(_WIN32)
+	result = doc.load_file(Utils::FileSystem::convertToWideString(xmlpath).c_str());
+#else
 	result = doc.load_file(xmlpath.c_str());
+#endif
 
 	if(!result)
 	{
@@ -88,7 +96,11 @@ MameNames::MameNames()
 
 	LOG(LogInfo) << "Parsing XML file \"" << xmlpath << "\"...";
 
+#if defined(_WIN32)
+	result = doc.load_file(Utils::FileSystem::convertToWideString(xmlpath).c_str());
+#else
 	result = doc.load_file(xmlpath.c_str());
+#endif
 
 	if(!result)
 	{

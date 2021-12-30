@@ -289,7 +289,11 @@ bool InputManager::loadInputConfig(InputConfig* config)
 		return false;
 
 	pugi::xml_document doc;
+#if defined(_WIN32)
+	pugi::xml_parse_result res = doc.load_file(Utils::FileSystem::convertToWideString(path).c_str());
+#else
 	pugi::xml_parse_result res = doc.load_file(path.c_str());
+#endif
 
 	if(!res)
 	{
@@ -343,7 +347,11 @@ void InputManager::writeDeviceConfig(InputConfig* config)
 	if(Utils::FileSystem::exists(path))
 	{
 		// merge files
+#if defined(_WIN32)
+		pugi::xml_parse_result result = doc.load_file(Utils::FileSystem::convertToWideString(path).c_str());
+#else
 		pugi::xml_parse_result result = doc.load_file(path.c_str());
+#endif
 		if(!result)
 		{
 			LOG(LogError) << "Error parsing input config: " << result.description();
@@ -388,7 +396,11 @@ void InputManager::writeDeviceConfig(InputConfig* config)
 		root = doc.append_child("inputList");
 
 	config->writeToXML(root);
+#if defined(_WIN32)
+	doc.save_file(Utils::FileSystem::convertToWideString(path).c_str());
+#else
 	doc.save_file(path.c_str());
+#endif
 
 	Scripting::fireEvent("config-changed");
 	Scripting::fireEvent("controls-changed");
@@ -406,7 +418,11 @@ void InputManager::doOnFinish()
 
 	if(Utils::FileSystem::exists(path))
 	{
+#if defined(_WIN32)
+		pugi::xml_parse_result result = doc.load_file(Utils::FileSystem::convertToWideString(path).c_str());
+#else
 		pugi::xml_parse_result result = doc.load_file(path.c_str());
+#endif
 		if(!result)
 		{
 			LOG(LogError) << "Error parsing input config: " << result.description();

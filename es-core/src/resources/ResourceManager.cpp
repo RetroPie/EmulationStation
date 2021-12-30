@@ -65,7 +65,11 @@ const ResourceData ResourceManager::getFileData(const std::string& path) const
 
 ResourceData ResourceManager::loadFile(const std::string& path) const
 {
+#if defined(_WIN32)
+	std::ifstream stream(Utils::FileSystem::convertToWideString(path), std::ios::binary);
+#else
 	std::ifstream stream(path, std::ios::binary);
+#endif
 
 	stream.seekg(0, stream.end);
 	std::ifstream::pos_type size = stream.tellg();

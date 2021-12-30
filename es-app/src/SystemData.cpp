@@ -271,7 +271,11 @@ bool SystemData::loadConfig(Window* window)
 	}
 
 	pugi::xml_document doc;
+#if defined(_WIN32)
+	pugi::xml_parse_result res = doc.load_file(Utils::FileSystem::convertToWideString(path).c_str());
+#else
 	pugi::xml_parse_result res = doc.load_file(path.c_str());
+#endif
 
 	if(!res)
 	{
@@ -387,7 +391,11 @@ bool SystemData::loadConfig(Window* window)
 
 void SystemData::writeExampleConfig(const std::string& path)
 {
+#if defined(_WIN32)
+	std::ofstream file(Utils::FileSystem::convertToWideString(path));
+#else
 	std::ofstream file(path.c_str());
+#endif
 
 	file << "<!-- This is the EmulationStation Systems configuration file.\n"
 			"All systems must be contained within the <systemList> tag.-->\n"

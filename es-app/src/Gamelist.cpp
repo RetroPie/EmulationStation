@@ -92,7 +92,11 @@ void parseGamelist(SystemData* system)
 	LOG(LogInfo) << "Parsing XML file \"" << xmlpath << "\"...";
 
 	pugi::xml_document doc;
+#if defined(_WIN32)
+	pugi::xml_parse_result result = doc.load_file(Utils::FileSystem::convertToWideString(xmlpath).c_str());
+#else
 	pugi::xml_parse_result result = doc.load_file(xmlpath.c_str());
+#endif
 
 	if(!result)
 	{
@@ -188,7 +192,11 @@ void updateGamelist(SystemData* system)
 	if(Utils::FileSystem::exists(xmlReadPath))
 	{
 		//parse an existing file first
+#if defined(_WIN32)
+		pugi::xml_parse_result result = doc.load_file(Utils::FileSystem::convertToWideString(xmlReadPath).c_str());
+#else
 		pugi::xml_parse_result result = doc.load_file(xmlReadPath.c_str());
+#endif
 
 		if(!result)
 		{
@@ -303,7 +311,11 @@ void updateGamelist(SystemData* system)
 
 			LOG(LogInfo) << "Added/Updated " << numUpdated << " entities in '" << xmlReadPath << "'";
 
+#if defined(_WIN32)
+			if (!doc.save_file(Utils::FileSystem::convertToWideString(xmlWritePath).c_str())) {
+#else
 			if (!doc.save_file(xmlWritePath.c_str())) {
+#endif
 				LOG(LogError) << "Error saving gamelist.xml to \"" << xmlWritePath << "\" (for system " << system->getName() << ")!";
 			}
 

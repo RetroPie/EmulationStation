@@ -218,7 +218,11 @@ void ImageDownloadHandle::update()
 	}
 
 	// download is done, save it to disk
+#if defined(_WIN32)
+	std::ofstream stream(Utils::FileSystem::convertToWideString(mSavePath), std::ios_base::out | std::ios_base::binary);
+#else
 	std::ofstream stream(mSavePath, std::ios_base::out | std::ios_base::binary);
+#endif
 	if(stream.bad())
 	{
 		setError("Failed to open image path to write. Permission error? Disk full?");

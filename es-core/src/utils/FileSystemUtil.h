@@ -42,6 +42,9 @@ namespace Utils
 #if !defined(_WIN32)
 		bool        isExecutable       (const std::string& _path);
 #endif // !_WIN32
+#if defined(_WIN32)
+		std::wstring convertToWideString(const std::string string);
+#endif
 
 	} // FileSystem::
 

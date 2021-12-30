@@ -9,6 +9,10 @@
 #include <fcntl.h>
 
 #include "Log.h"
+#ifdef WIN32
+#include <Windows.h>
+#include "utils/FileSystemUtil.h"
+#endif
 
 int runShutdownCommand()
 {
@@ -31,12 +35,26 @@ int runRestartCommand()
 int runSystemCommand(const std::string& cmd_utf8)
 {
 #ifdef WIN32
-	// on Windows we use _wsystem to support non-ASCII paths
-	// which requires converting from utf8 to a wstring
-	typedef std::codecvt_utf8<wchar_t> convert_type;
-	std::wstring_convert<convert_type, wchar_t> converter;
-	std::wstring wchar_str = converter.from_bytes(cmd_utf8);
-	return _wsystem(wchar_str.c_str());
+	STARTUPINFOW
+		si;
+	PROCESS_INFORMATION
+		pi;
+	DWORD
+		rcode = 0;
+
+	memset(&si, 0, sizeof si);
+	memset(&pi, 0, sizeof pi);
+	si.cb = sizeof si;
+
+	if(!CreateProcessW(NULL, (LPWSTR)Utils::FileSystem::convertToWideString(cmd_utf8).c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi))
+		return 9009;
+
+	CloseHandle(pi.hThread);
+	WaitForSingleObject(pi.hProcess, INFINITE);
+	GetExitCodeProcess(pi.hProcess, &rcode);
+	CloseHandle(pi.hProcess);
+
+	return rcode;
 #else
 	return system(cmd_utf8.c_str());
 #endif
@@ -54,18 +72,17 @@ int quitES(QuitMode mode)
 	return 0;
 }
 
+#ifdef WIN32
+// Windows hasn't /tmp directory usualy so nothing to touch.
+inline void touch(const std::string&) {}
+#else
 void touch(const std::string& filename)
 {
-#ifdef WIN32
-	FILE* fp = fopen(filename.c_str(), "ab+");
-	if (fp != NULL)
-		fclose(fp);
-#else
 	int fd = open(filename.c_str(), O_CREAT|O_WRONLY, 0644);
 	if (fd >= 0)
 		close(fd);
-#endif
 }
+#endif
 
 void processQuitMode()
 {

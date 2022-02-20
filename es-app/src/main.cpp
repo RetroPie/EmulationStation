@@ -341,7 +341,6 @@ int main(int argc, char* argv[])
 	window.pushGui(ViewController::get());
 
 	bool splashScreen = Settings::getInstance()->getBool("SplashScreen");
-	bool splashScreenProgress = Settings::getInstance()->getBool("SplashScreenProgress");
 
 	if(!scrape_cmdline)
 	{
@@ -353,15 +352,13 @@ int main(int argc, char* argv[])
 
 		if (splashScreen)
 		{
-			std::string progressText = "Loading...";
-			if (splashScreenProgress)
-				progressText = "Loading system config...";
+			std::string progressText = "Loading system config...";
 			window.renderLoadingScreen(progressText);
 		}
 	}
 
 	const char* errorMsg = NULL;
-	if(!loadSystemConfigFile(splashScreen && splashScreenProgress ? &window : nullptr, &errorMsg))
+	if(!loadSystemConfigFile(splashScreen ? &window : nullptr, &errorMsg))
 	{
 		// something went terribly wrong
 		if(errorMsg == NULL)
@@ -392,7 +389,7 @@ int main(int argc, char* argv[])
 	// this makes for no delays when accessing content, but a longer startup time
 	ViewController::get()->preload();
 
-	if(splashScreen && splashScreenProgress)
+	if(splashScreen)
 		window.renderLoadingScreen("Done.");
 
 	//choose which GUI to open depending on if an input configuration already exists

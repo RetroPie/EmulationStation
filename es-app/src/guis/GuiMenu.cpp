@@ -11,6 +11,7 @@
 #include "guis/GuiSettings.h"
 #include "views/UIModeController.h"
 #include "views/ViewController.h"
+#include "AudioManager.h"
 #include "CollectionSystemManager.h"
 #include "EmulationStation.h"
 #include "Scripting.h"
@@ -157,6 +158,20 @@ void GuiMenu::openSoundSettings()
 				PowerSaver::init();
 			}
 			Settings::getInstance()->setBool("EnableSounds", sounds_enabled->getState());
+		});
+		
+		auto music_enabled = std::make_shared<SwitchComponent>(mWindow);
+		music_enabled->setState(Settings::getInstance()->getBool("EnableMusic"));
+		s->addWithLabel("BACKGROUND MUSIC", music_enabled);
+		s->addSaveFunc([music_enabled] 
+		{
+			if (Settings::getInstance()->setBool("EnableMusic", music_enabled->getState()))
+			{
+				if (music_enabled->getState())
+					AudioManager::getInstance()->playRandomMusic();
+				else
+					AudioManager::getInstance()->stopMusic();
+			}
 		});
 
 		auto video_audio = std::make_shared<SwitchComponent>(mWindow);

@@ -8,12 +8,12 @@
 #endif
 
 #if defined(__linux__)
-    #if defined(_RPI_) || defined(_VERO4K_)
-        const char * VolumeControl::mixerName = "PCM";
-    #else
-    	const char * VolumeControl::mixerName = "Master";
-    #endif
-    const char * VolumeControl::mixerCard = "default";
+#if defined(_RPI_) || defined(_VERO4K_)
+		std::string VolumeControl::mixerName = "PCM";
+#else
+		std::string VolumeControl::mixerName = "Master";
+#endif
+		std::string VolumeControl::mixerCard = "default";
 #endif
 
 std::weak_ptr<VolumeControl> VolumeControl::sInstance;
@@ -87,19 +87,24 @@ void VolumeControl::init()
 	if (mixerHandle == nullptr)
 	{
 		// Allow users to override the AudioCard and MixerName in es_settings.cfg
-		mixerCard = Settings::getInstance()->getString("AudioCard").c_str();
-		mixerName = Settings::getInstance()->getString("AudioDevice").c_str();
+		auto audioCard = Settings::getInstance()->getString("AudioCard");
+		if (!audioCard.empty())
+			mixerCard = audioCard;
+
+		auto audioDevice = Settings::getInstance()->getString("AudioDevice");
+		if (!audioDevice.empty())
+			mixerName = audioDevice;
 
 		snd_mixer_selem_id_alloca(&mixerSelemId);
 		//sets simple-mixer index and name
 		snd_mixer_selem_id_set_index(mixerSelemId, mixerIndex);
-		snd_mixer_selem_id_set_name(mixerSelemId, mixerName);
+		snd_mixer_selem_id_set_name(mixerSelemId, mixerName.c_str());
 		//open mixer
 		if (snd_mixer_open(&mixerHandle, 0) >= 0)
 		{
 			LOG(LogDebug) << "VolumeControl::init() - Opened ALSA mixer";
 			//ok. attach to defualt card
-			if (snd_mixer_attach(mixerHandle, mixerCard) >= 0)
+			if (snd_mixer_attach(mixerHandle, mixerCard.c_str()) >= 0)
 			{
 				LOG(LogDebug) << "VolumeControl::init() - Attached to default card";
 				//ok. register simple element class
@@ -119,9 +124,39 @@ void VolumeControl::init()
 						}
 						else
 						{
-							LOG(LogError) << "VolumeControl::init() - Failed to find mixer elements!";
-							snd_mixer_close(mixerHandle);
-							mixerHandle = nullptr;
+							LOG(LogInfo) << "VolumeControl::init() - Unable to find mixer " << mixerName << " -> Search for alternative mixer";
+
+							snd_mixer_selem_id_t *mxid = nullptr;
+							snd_mixer_selem_id_alloca(&mxid);
+
+							for (snd_mixer_elem_t* mxe = snd_mixer_first_elem(mixerHandle); mxe != nullptr; mxe = snd_mixer_elem_next(mxe))
+							{
+								if (snd_mixer_selem_has_playback_volume(mxe) != 0 && snd_mixer_selem_is_active(mxe) != 0)
+								{
+									snd_mixer_selem_get_id(mxe, mxid);
+									mixerName = snd_mixer_selem_id_get_name(mxid);
+
+									LOG(LogInfo) << "mixername : " << mixerName;
+
+									snd_mixer_selem_id_set_name(mixerSelemId, mixerName.c_str());
+									mixerElem = snd_mixer_find_selem(mixerHandle, mixerSelemId);
+									if (mixerElem != nullptr)
+									{
+										//wohoo. good to go...
+										LOG(LogDebug) << "VolumeControl::init() - Mixer initialized";
+										break;
+									}
+									else
+										LOG(LogDebug) << "VolumeControl::init() - Mixer not initialized";
+								}
+							}
+
+							if (mixerElem == nullptr)
+							{
+								LOG(LogError) << "VolumeControl::init() - Failed to find mixer elements!";
+								snd_mixer_close(mixerHandle);
+								mixerHandle = nullptr;
+							}
 						}
 					}
 					else
@@ -232,7 +267,7 @@ void VolumeControl::deinit()
 	#error TODO: Not implemented for MacOS yet!!!
 #elif defined(__linux__)
 	if (mixerHandle != nullptr) {
-		snd_mixer_detach(mixerHandle, mixerCard);
+		snd_mixer_detach(mixerHandle, mixerCard.c_str());
 		snd_mixer_free(mixerHandle);
 		snd_mixer_close(mixerHandle);
 		mixerHandle = nullptr;
@@ -260,6 +295,20 @@ int VolumeControl::getVolume() const
 #elif defined(__linux__)
 	if (mixerElem != nullptr)
 	{
+		if (mixerHandle != nullptr)
+			snd_mixer_handle_events(mixerHandle);
+
+		/* Disabled see commit 38ce42faef8aae3f9c180560bfdedd9d1b954d28
+		 * https://github.com/batocera-linux/batocera-emulationstation/
+		int mute_state;
+		if (snd_mixer_selem_has_playback_switch(mixerElem)) 
+		{
+			snd_mixer_selem_get_playback_switch(mixerElem, SND_MIXER_SCHN_UNKNOWN, &mute_state);
+			if (!mute_state) // system Muted
+				return 0;
+		}
+		*/
+
 		//get volume range
 		long minVolume;
 		long maxVolume;
@@ -275,7 +324,6 @@ int VolumeControl::getVolume() const
 				{
 					volume = (rawVolume * 100.0) / (maxVolume - minVolume) + 0.5;
 				}
-				//else volume = 0;
 			}
 			else
 			{
@@ -300,39 +348,32 @@ int VolumeControl::getVolume() const
 		mixerControlDetails.paDetails = &value;
 		mixerControlDetails.cbDetails = sizeof(MIXERCONTROLDETAILS_UNSIGNED);
 		if (mixerGetControlDetails((HMIXEROBJ)mixerHandle, &mixerControlDetails, MIXER_GETCONTROLDETAILSF_VALUE) == MMSYSERR_NOERROR)
-		{
 			volume = (int)Math::round((value.dwValue * 100) / 65535.0f);
-		}
-		else
-		{
-			LOG(LogError) << "VolumeControl::getVolume() - Failed to get mixer volume!";
-		}
 	}
 	else if (endpointVolume != nullptr)
 	{
 		//Windows Vista or above. use EndpointVolume API
 		float floatVolume = 0.0f; //0-1
-		if (endpointVolume->GetMasterVolumeLevelScalar(&floatVolume) == S_OK)
+
+		BOOL mute = FALSE;
+		if (endpointVolume->GetMute(&mute) == S_OK)
 		{
-			volume = (int)Math::round(floatVolume * 100.0f);
-			LOG(LogInfo) << " getting volume as " << volume << " ( from float " << floatVolume << ")";
-		}
-		else
-		{
-			LOG(LogError) << "VolumeControl::getVolume() - Failed to get master volume!";
+			if (mute)
+				return 0;
 		}
 
+		if (endpointVolume->GetMasterVolumeLevelScalar(&floatVolume) == S_OK)
+			volume = (int)Math::round(floatVolume * 100.0f);
 	}
 #endif
+
 	//clamp to 0-100 range
 	if (volume < 0)
-	{
 		volume = 0;
-	}
+
 	if (volume > 100)
-	{
 		volume = 100;
-	}
+
 	return volume;
 }
 
@@ -402,5 +443,16 @@ void VolumeControl::setVolume(int volume)
 			LOG(LogError) << "VolumeControl::setVolume() - Failed to set master volume!";
 		}
 	}
+#endif
+}
+
+bool VolumeControl::isAvailable()
+{
+#if defined (__APPLE__)
+	return false;
+#elif defined(__linux__)
+	return mixerHandle != nullptr && mixerElem != nullptr;
+#elif defined(WIN32) || defined(_WIN32)
+	return mixerHandle != nullptr || endpointVolume != nullptr;
 #endif
 }

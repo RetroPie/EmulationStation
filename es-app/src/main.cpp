@@ -6,6 +6,7 @@
 #include "utils/FileSystemUtil.h"
 #include "utils/ProfilingUtil.h"
 #include "views/ViewController.h"
+#include "AudioManager.h"
 #include "CollectionSystemManager.h"
 #include "EmulationStation.h"
 #include "InputManager.h"
@@ -394,6 +395,10 @@ int main(int argc, char* argv[])
 	for(Uint32 ev_type: event_list) {
 		SDL_FlushEvent(ev_type);
 	}
+		
+	// RetroPie BGM
+	AudioManager::getInstance()->init();
+	AudioManager::getInstance()->playRandomMusic();
 
 	int lastTime = SDL_GetTicks();
 	int ps_time = SDL_GetTicks();

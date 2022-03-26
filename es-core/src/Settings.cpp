@@ -9,7 +9,6 @@
 #include <vector>
 
 Settings* Settings::sInstance = NULL;
-static std::string mEmptyString = "";
 
 // these values are NOT saved to es_settings.xml
 // since they're set through command-line arguments, and not the in-program settings menu
@@ -279,55 +278,20 @@ void Settings::processBackwardCompatibility()
 
 
 //Print a warning message if the setting we're trying to get doesn't already exist in the map, then return the value in the map.
-#define SETTINGS_GETSET(type, mapName, getMethodName, setMethodName, defaultValue) type Settings::getMethodName(const std::string& name) \
+#define SETTINGS_GETSET(type, mapName, getMethodName, setMethodName) type Settings::getMethodName(const std::string& name) \
 { \
 	if(mapName.find(name) == mapName.cend()) \
 	{ \
-		/* LOG(LogError) << "Tried to use unset setting " << name << "!"; */ \
-		return defaultValue; \
+		LOG(LogError) << "Tried to use unset setting " << name << "!"; \
 	} \
 	return mapName[name]; \
 } \
-bool Settings::setMethodName(const std::string& name, type value) \
+void Settings::setMethodName(const std::string& name, type value) \
 { \
-	if(mapName.count(name) == 0 || mapName[name] != value) { \
 		mapName[name] = value; \
-\
-		if(std::find(settings_dont_save.cbegin(), settings_dont_save.cend(), name) == settings_dont_save.cend()) \
-			mWasChanged = true; \
-\
-		return true; \
-	} \
-	return false; \
 }
 
-SETTINGS_GETSET(bool, mBoolMap, getBool, setBool, false);
-SETTINGS_GETSET(int, mIntMap, getInt, setInt, 0);
-SETTINGS_GETSET(float, mFloatMap, getFloat, setFloat, 0.0f);
-
-
-std::string Settings::getString(const std::string& name)
-{ 
-	if(mStringMap.find(name) == mStringMap.cend())
-		return mEmptyString;
-
-	return mStringMap[name];
-}
-
-bool Settings::setString(const std::string& name, const std::string& value)
-{ 
-	if(mStringMap.count(name) == 0 || mStringMap[name] != value)
-	{
-		if(value == "" && mStringMap.count(name) == 0)
-			return false;
-
-		mStringMap[name] = value;
-		
-		if(std::find(settings_dont_save.cbegin(), settings_dont_save.cend(), name) == settings_dont_save.cend()) 
-			mWasChanged = true; 
-			
-		return true; 
-	} 
-
-	return false; 
-}
+SETTINGS_GETSET(bool, mBoolMap, getBool, setBool);
+SETTINGS_GETSET(int, mIntMap, getInt, setInt);
+SETTINGS_GETSET(float, mFloatMap, getFloat, setFloat);
+SETTINGS_GETSET(const std::string&, mStringMap, getString, setString);

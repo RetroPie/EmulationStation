@@ -156,7 +156,7 @@ void AudioManager::playRandomMusic(bool continueIfPlaying)
   
 	// check in system sound directory
 	if(musics.empty())
-		getMusicIn("/usr/share/RetroPie/music", musics);
+		getMusicIn("/opt/retropie/music", musics);
   
 	// check in .emulationstation/music directory
 	if(musics.empty())

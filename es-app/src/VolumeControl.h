@@ -24,8 +24,8 @@ class VolumeControl
 #if defined (__APPLE__)
     #error TODO: Not implemented for MacOS yet!!!
 #elif defined(__linux__)
-    static std::string mixerName;
-    static std::string mixerCard;
+    static const char * mixerName;
+    static const char * mixerCard;
     int mixerIndex;
     snd_mixer_t* mixerHandle;
     snd_mixer_elem_t* mixerElem;

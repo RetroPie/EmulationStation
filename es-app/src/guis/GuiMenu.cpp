@@ -171,15 +171,12 @@ void GuiMenu::openSoundSettings()
 		auto music_enabled = std::make_shared<SwitchComponent>(mWindow);
 		music_enabled->setState(Settings::getInstance()->getBool("EnableMusic"));
 		s->addWithLabel("BACKGROUND MUSIC", music_enabled);
-		s->addSaveFunc([music_enabled] 
-		{
-			if (Settings::getInstance()->setBool("EnableMusic", music_enabled->getState()))
-			{
-				if (music_enabled->getState())
-					AudioManager::getInstance()->playRandomMusic();
-				else
-					AudioManager::getInstance()->stopMusic();
-			}
+		s->addSaveFunc([music_enabled] {
+			Settings::getInstance()->setBool("EnableMusic", music_enabled->getState());
+			if (music_enabled->getState())
+				AudioManager::getInstance()->playRandomMusic();
+			else
+				AudioManager::getInstance()->stopMusic();
 		});
 
 		auto video_audio = std::make_shared<SwitchComponent>(mWindow);

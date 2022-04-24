@@ -119,9 +119,39 @@ void VolumeControl::init()
 						}
 						else
 						{
-							LOG(LogError) << "VolumeControl::init() - Failed to find mixer elements!";
-							snd_mixer_close(mixerHandle);
-							mixerHandle = nullptr;
+							LOG(LogInfo) << "VolumeControl::init() - Unable to find mixer " << mixerName << " -> Search for alternative mixer";
+
+							snd_mixer_selem_id_t *mxid = nullptr;
+							snd_mixer_selem_id_alloca(&mxid);
+
+							for (snd_mixer_elem_t* mxe = snd_mixer_first_elem(mixerHandle); mxe != nullptr; mxe = snd_mixer_elem_next(mxe))
+							{
+								if (snd_mixer_selem_has_playback_volume(mxe) != 0 && snd_mixer_selem_is_active(mxe) != 0)
+								{
+									snd_mixer_selem_get_id(mxe, mxid);
+									mixerName = snd_mixer_selem_id_get_name(mxid);
+
+									LOG(LogInfo) << "mixername : " << mixerName;
+
+									snd_mixer_selem_id_set_name(mixerSelemId, mixerName);
+									mixerElem = snd_mixer_find_selem(mixerHandle, mixerSelemId);
+									if (mixerElem != nullptr)
+									{
+										LOG(LogDebug) << "VolumeControl::init() - Mixer initialized";
+										break;
+									}
+									else
+									{
+										LOG(LogDebug) << "VolumeControl::init() - Mixer not initialized";
+									}
+								}
+							}
+							if (mixerElem == nullptr)
+							{
+								LOG(LogError) << "VolumeControl::init() - Failed to find mixer elements!";
+								snd_mixer_close(mixerHandle);
+								mixerHandle = nullptr;
+							}
 						}
 					}
 					else
@@ -260,6 +290,10 @@ int VolumeControl::getVolume() const
 #elif defined(__linux__)
 	if (mixerElem != nullptr)
 	{
+		if (mixerHandle != nullptr)
+		{
+			snd_mixer_handle_events(mixerHandle);
+		}
 		//get volume range
 		long minVolume;
 		long maxVolume;
@@ -312,6 +346,14 @@ int VolumeControl::getVolume() const
 	{
 		//Windows Vista or above. use EndpointVolume API
 		float floatVolume = 0.0f; //0-1
+		BOOL mute = FALSE;
+		if (endpointVolume->GetMute(&mute) == S_OK)
+		{
+			if (mute)
+			{
+				return 0;
+			}
+		}
 		if (endpointVolume->GetMasterVolumeLevelScalar(&floatVolume) == S_OK)
 		{
 			volume = (int)Math::round(floatVolume * 100.0f);
@@ -321,7 +363,6 @@ int VolumeControl::getVolume() const
 		{
 			LOG(LogError) << "VolumeControl::getVolume() - Failed to get master volume!";
 		}
-
 	}
 #endif
 	//clamp to 0-100 range
@@ -402,5 +443,16 @@ void VolumeControl::setVolume(int volume)
 			LOG(LogError) << "VolumeControl::setVolume() - Failed to set master volume!";
 		}
 	}
+#endif
+}
+
+bool VolumeControl::isAvailable()
+{
+#if defined (__APPLE__)
+	return false;
+#elif defined(__linux__)
+	return mixerHandle != nullptr && mixerElem != nullptr;
+#elif defined(WIN32) || defined(_WIN32)
+	return mixerHandle != nullptr || endpointVolume != nullptr;
 #endif
 }

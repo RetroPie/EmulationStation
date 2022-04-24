@@ -4,6 +4,7 @@
 #include "components/ImageComponent.h"
 #include "resources/Font.h"
 #include "resources/TextureResource.h"
+#include "AudioManager.h"
 #include "InputManager.h"
 #include "Log.h"
 #include "Scripting.h"
@@ -236,6 +237,8 @@ void Window::update(int deltaTime)
 	// Update the screensaver
 	if (mScreenSaver)
 		mScreenSaver->update(deltaTime);
+
+	AudioManager::update(deltaTime);
 }
 
 void Window::render()

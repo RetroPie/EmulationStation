@@ -1,6 +1,11 @@
 Programming
 	Alec "Aloshi" Lofquist - http://www.aloshi.com
 
+BGM Player using SDL2-mixer
+	Nicolas Adenis-Lamarre - https://batocera.org
+	Fabrice Caruso - https://batocera.org
+	Andrew Falcon - bluestang2006@gmail.com (backported code)
+
 UI Art & Design
 	Nils Bonenberger
 

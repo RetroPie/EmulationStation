@@ -70,6 +70,8 @@ void Settings::setDefaults()
 	mBoolMap["VSync"] = true;
 
 	mBoolMap["EnableSounds"] = true;
+	mBoolMap["EnableMusic"] = true;
+	mIntMap["MusicVolume"] = 128;
 	mBoolMap["ShowHelpPrompts"] = true;
 	mBoolMap["DoublePressRemovesFromFavs"] = false;
 	mBoolMap["ScrapeRatings"] = true;
@@ -284,7 +286,7 @@ void Settings::processBackwardCompatibility()
 } \
 void Settings::setMethodName(const std::string& name, type value) \
 { \
-	mapName[name] = value; \
+		mapName[name] = value; \
 }
 
 SETTINGS_GETSET(bool, mBoolMap, getBool, setBool);

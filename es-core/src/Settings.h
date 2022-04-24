@@ -26,6 +26,12 @@ public:
 	void setFloat(const std::string& name, float value);
 	void setString(const std::string& name, const std::string& value);
 
+	std::map<std::string, std::string>& getStringMap() { return mStringMap; }
+
+	static bool DebugText;
+	static bool DebugImage;
+	static bool DebugGrid;
+
 private:
 	static Settings* sInstance;
 
@@ -40,6 +46,13 @@ private:
 	std::map<std::string, int> mIntMap;
 	std::map<std::string, float> mFloatMap;
 	std::map<std::string, std::string> mStringMap;
+
+	bool mWasChanged;
+
+	std::map<std::string, bool> mDefaultBoolMap;
+	std::map<std::string, int> mDefaultIntMap;
+	std::map<std::string, float> mDefaultFloatMap;
+	std::map<std::string, std::string> mDefaultStringMap;
 };
 
 #endif // ES_CORE_SETTINGS_H

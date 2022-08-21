@@ -26,6 +26,7 @@ private:
 	std::map<SDL_JoystickID, InputConfig*> mInputConfigs;
 	InputConfig* mKeyboardInputConfig;
 	InputConfig* mCECInputConfig;
+	int mLastUsedKeyboardOrController;
 
 	std::map<SDL_JoystickID, int*> mPrevAxisValues;
 
@@ -56,6 +57,7 @@ public:
 	std::string getDeviceGUIDString(int deviceId);
 
 	InputConfig* getInputConfigByDevice(int deviceId);
+	InputConfig* getInputConfigForLastUsedDevice() const;
 
 	bool parseEvent(const SDL_Event& ev, Window* window);
 };

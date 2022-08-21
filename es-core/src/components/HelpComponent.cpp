@@ -3,10 +3,10 @@
 #include "components/ComponentGrid.h"
 #include "components/ImageComponent.h"
 #include "components/TextComponent.h"
-#include "resources/TextureResource.h"
 #include "utils/StringUtil.h"
 #include "Log.h"
 #include "Settings.h"
+#include "InputManager.h"
 
 #define OFFSET_X 12 // move the entire thing right by this amount (px)
 #define OFFSET_Y 12 // move the entire thing up by this amount (px)
@@ -14,7 +14,7 @@
 #define ICON_TEXT_SPACING 8 // space between [icon] and [text] (px)
 #define ENTRY_SPACING 16 // space between [text] and next [icon] (px)
 
-static const std::map<std::string, const char*> ICON_PATH_MAP {
+static const HelpComponent::IconPathMap DEFAULT_ICON_PATH_MAP {
 	{ "up/down", ":/help/dpad_updown.svg" },
 	{ "left/right", ":/help/dpad_leftright.svg" },
 	{ "up/down/left/right", ":/help/dpad_all.svg" },
@@ -27,6 +27,20 @@ static const std::map<std::string, const char*> ICON_PATH_MAP {
 	{ "lr", ":/help/button_lr.svg" },
 	{ "start", ":/help/button_start.svg" },
 	{ "select", ":/help/button_select.svg" }
+};
+
+static const HelpComponent::IconPathMap NO_ICON_OVERRIDES {};
+static const HelpComponent::IconPathMap XBOX_ICON_OVERRIDES {
+	{ "a", ":/help/button_b.svg" },
+	{ "b", ":/help/button_a.svg" },
+	{ "x", ":/help/button_y.svg" },
+	{ "y", ":/help/button_x.svg" },
+};
+static const HelpComponent::IconPathMap PLAYSTATION_ICON_OVERRIDES {
+	{ "a", ":/help/button_circle.svg" },
+	{ "b", ":/help/button_cross.svg" },
+	{ "x", ":/help/button_triangle.svg" },
+	{ "y", ":/help/button_square.svg" },
 };
 
 HelpComponent::HelpComponent(Window* window) : GuiComponent(window)
@@ -67,12 +81,15 @@ void HelpComponent::updateGrid()
 	std::vector< std::shared_ptr<ImageComponent> > icons;
 	std::vector< std::shared_ptr<TextComponent> > labels;
 
+	const auto& iconOverrides =
+		getIconOverridesForInput(InputManager::getInstance()->getInputConfigForLastUsedDevice());
+
 	float width = 0;
 	const float height = Math::round(font->getLetterHeight() * 1.25f);
 	for(auto it = mPrompts.cbegin(); it != mPrompts.cend(); it++)
 	{
 		auto icon = std::make_shared<ImageComponent>(mWindow);
-		icon->setImage(getIconTexture(it->first.c_str()));
+		icon->setImage(getIconTexture(it->first, iconOverrides));
 		icon->setColorShift(mStyle.iconColor);
 		icon->setResize(0, height);
 		icons.push_back(icon);
@@ -100,26 +117,51 @@ void HelpComponent::updateGrid()
 	mGrid->setOrigin(mStyle.origin);
 }
 
-std::shared_ptr<TextureResource> HelpComponent::getIconTexture(const char* name)
+const HelpComponent::IconPathMap& HelpComponent::getIconOverridesForInput(InputConfig* inputConfig)
 {
-	auto it = mIconCache.find(name);
+	if(!inputConfig)
+		return NO_ICON_OVERRIDES;
+
+	switch(inputConfig->getButtonLayout())
+	{
+		case BUTTON_LAYOUT_PLAYSTATION:
+			return PLAYSTATION_ICON_OVERRIDES;
+
+		case BUTTON_LAYOUT_XBOX:
+			return XBOX_ICON_OVERRIDES;
+
+		case BUTTON_LAYOUT_DEFAULT:
+			break;
+	}
+
+	return NO_ICON_OVERRIDES;
+}
+
+std::shared_ptr<TextureResource> HelpComponent::getIconTexture(const std::string& name, const IconPathMap& iconOverrides)
+{
+	auto pathLookup = iconOverrides.find(name);
+	if(pathLookup == iconOverrides.cend())
+	{
+		pathLookup = DEFAULT_ICON_PATH_MAP.find(name);
+		if(pathLookup == DEFAULT_ICON_PATH_MAP.cend())
+		{
+			LOG(LogError) << "Unknown help icon \"" << name << "\"!";
+			return nullptr;
+		}
+	}
+
+	auto it = mIconCache.find(pathLookup->second);
 	if(it != mIconCache.cend())
 		return it->second;
 
-	auto pathLookup = ICON_PATH_MAP.find(name);
-	if(pathLookup == ICON_PATH_MAP.cend())
-	{
-		LOG(LogError) << "Unknown help icon \"" << name << "\"!";
-		return nullptr;
-	}
 	if(!ResourceManager::getInstance()->fileExists(pathLookup->second))
 	{
-		LOG(LogError) << "Help icon \"" << name << "\" - corresponding image file \"" << pathLookup->second << "\" misisng!";
+		LOG(LogError) << "Help icon \"" << name << "\" - corresponding image file \"" << pathLookup->second << "\" missing!";
 		return nullptr;
 	}
 
 	std::shared_ptr<TextureResource> tex = TextureResource::get(pathLookup->second);
-	mIconCache[std::string(name)] = tex;
+	mIconCache[pathLookup->second] = tex;
 	return tex;
 }
 

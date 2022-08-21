@@ -24,6 +24,13 @@ enum InputType
 	TYPE_COUNT
 };
 
+enum InputButtonLayout
+{
+	BUTTON_LAYOUT_DEFAULT,  // In the style of an SNES controller
+	BUTTON_LAYOUT_PLAYSTATION,
+	BUTTON_LAYOUT_XBOX,
+};
+
 struct Input
 {
 public:
@@ -96,7 +103,10 @@ public:
 class InputConfig
 {
 public:
-	InputConfig(int deviceId, const std::string& deviceName, const std::string& deviceGUID);
+	InputConfig(int deviceId,
+		const std::string& deviceName,
+		const std::string& deviceGUID,
+		InputButtonLayout buttonLayout = BUTTON_LAYOUT_DEFAULT);
 
 	void clear();
 	void mapInput(const std::string& name, Input input);
@@ -105,6 +115,7 @@ public:
 	inline int getDeviceId() const { return mDeviceId; };
 	inline const std::string& getDeviceName() { return mDeviceName; }
 	inline const std::string& getDeviceGUIDString() { return mDeviceGUID; }
+	inline InputButtonLayout getButtonLayout() const { return mButtonLayout; }
 
 	//Returns true if Input is mapped to this name, false otherwise.
 	bool isMappedTo(const std::string& name, Input input);
@@ -127,6 +138,7 @@ private:
 	const int mDeviceId;
 	const std::string mDeviceName;
 	const std::string mDeviceGUID;
+	const InputButtonLayout mButtonLayout;
 };
 
 #endif // ES_CORE_INPUT_CONFIG_H

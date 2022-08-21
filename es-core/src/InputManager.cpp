@@ -1,5 +1,6 @@
 #include "InputManager.h"
 
+#include "resources/ResourceManager.h"
 #include "utils/FileSystemUtil.h"
 #include "CECInput.h"
 #include "Log.h"
@@ -31,7 +32,7 @@ int SDL_USER_CECBUTTONUP   = -1;
 
 InputManager* InputManager::mInstance = NULL;
 
-InputManager::InputManager() : mKeyboardInputConfig(NULL)
+InputManager::InputManager() : mKeyboardInputConfig(NULL), mLastUsedKeyboardOrController(DEVICE_KEYBOARD)
 {
 }
 
@@ -62,7 +63,7 @@ void InputManager::init()
 	SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI, "0");
 #endif
 #endif
-	SDL_InitSubSystem(SDL_INIT_JOYSTICK);
+	SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER);
 	SDL_JoystickEventState(SDL_ENABLE);
 
 	// first, open all currently present joysticks
@@ -98,8 +99,36 @@ void InputManager::addJoystickByDeviceIndex(int id)
 	char guid[65];
 	SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joy), guid, 65);
 
+	InputButtonLayout buttonLayout = BUTTON_LAYOUT_DEFAULT;
+	switch(SDL_GameControllerTypeForIndex(id))
+	{
+		case SDL_CONTROLLER_TYPE_PS3:
+		case SDL_CONTROLLER_TYPE_PS4:
+		case SDL_CONTROLLER_TYPE_PS5:
+			buttonLayout = BUTTON_LAYOUT_PLAYSTATION;
+			break;
+
+		case SDL_CONTROLLER_TYPE_XBOX360:
+		case SDL_CONTROLLER_TYPE_XBOXONE:
+		case SDL_CONTROLLER_TYPE_AMAZON_LUNA:
+		case SDL_CONTROLLER_TYPE_GOOGLE_STADIA:
+		case SDL_CONTROLLER_TYPE_NVIDIA_SHIELD:
+			buttonLayout = BUTTON_LAYOUT_XBOX;
+			break;
+
+		case SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_PRO:
+		case SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_LEFT:
+		case SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_RIGHT:
+		case SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_PAIR:
+			break;
+
+		case SDL_CONTROLLER_TYPE_UNKNOWN:
+		case SDL_CONTROLLER_TYPE_VIRTUAL:
+			break;
+	}
+
 	// create the InputConfig
-	mInputConfigs[joyId] = new InputConfig(joyId, SDL_JoystickName(joy), guid);
+	mInputConfigs[joyId] = new InputConfig(joyId, SDL_JoystickName(joy), guid, buttonLayout);
 	if(!loadInputConfig(mInputConfigs[joyId]))
 	{
 		LOG(LogInfo) << "Added unconfigured joystick '" << SDL_JoystickName(joy) << "' (GUID: " << guid << ", instance ID: " << joyId << ", device index: " << id << ").";
@@ -111,6 +140,8 @@ void InputManager::addJoystickByDeviceIndex(int id)
 	int numAxes = SDL_JoystickNumAxes(joy);
 	mPrevAxisValues[joyId] = new int[numAxes];
 	std::fill(mPrevAxisValues[joyId], mPrevAxisValues[joyId] + numAxes, 0); //initialize array to 0
+
+	mLastUsedKeyboardOrController = joyId;
 }
 
 void InputManager::removeJoystickByJoystickID(SDL_JoystickID joyId)
@@ -172,7 +203,7 @@ void InputManager::deinit()
 	CECInput::deinit();
 
 	SDL_JoystickEventState(SDL_DISABLE);
-	SDL_QuitSubSystem(SDL_INIT_JOYSTICK);
+	SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
 }
 
 int InputManager::getNumJoysticks() { return (int)mJoysticks.size(); }
@@ -198,12 +229,27 @@ int InputManager::getButtonCountByDevice(SDL_JoystickID id)
 
 InputConfig* InputManager::getInputConfigByDevice(int device)
 {
+	if(device != DEVICE_CEC)
+		mLastUsedKeyboardOrController = device;
+
 	if(device == DEVICE_KEYBOARD)
 		return mKeyboardInputConfig;
 	else if(device == DEVICE_CEC)
 		return mCECInputConfig;
 	else
 		return mInputConfigs[device];
+}
+
+InputConfig* InputManager::getInputConfigForLastUsedDevice() const
+{
+	if(mLastUsedKeyboardOrController == DEVICE_KEYBOARD)
+		return mKeyboardInputConfig;
+
+	const auto it = mInputConfigs.find(mLastUsedKeyboardOrController);
+	if(it != mInputConfigs.end())
+		return it->second;
+
+	return nullptr;  // Could happen if last used controller was unplugged
 }
 
 bool InputManager::parseEvent(const SDL_Event& ev, Window* window)

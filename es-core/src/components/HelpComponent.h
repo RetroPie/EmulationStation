@@ -4,6 +4,9 @@
 
 #include "GuiComponent.h"
 #include "HelpStyle.h"
+#include "resources/TextureResource.h"
+
+#include <string>
 
 class ComponentGrid;
 class ImageComponent;
@@ -22,8 +25,11 @@ public:
 
 	void setStyle(const HelpStyle& style);
 
+	using IconPathMap = std::map<std::string /*name*/, std::string /*path*/>;
+
 private:
-	std::shared_ptr<TextureResource> getIconTexture(const char* name);
+	const IconPathMap& getIconOverridesForInput(InputConfig* inputConfig);
+	std::shared_ptr<TextureResource> getIconTexture(const std::string& name, const IconPathMap& iconOverrides);
 	std::map< std::string, std::shared_ptr<TextureResource> > mIconCache;
 
 	std::shared_ptr<ComponentGrid> mGrid;

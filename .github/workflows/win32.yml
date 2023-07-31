@@ -1,0 +1,77 @@
+name: build win32
+
+on: [push]
+
+jobs:
+  build:
+    runs-on:
+      windows-2016
+
+    env:
+      BUILD_TYPE: Release
+      Platform: Win32
+
+    defaults:
+      run:
+        shell: cmd
+
+    steps:
+      - name: setenv
+        run: |
+          set VCPKG=%VCPKG_INSTALLATION_ROOT%/installed/x86-windows-static-md
+          echo NUGET=${{runner.workspace}}/nuget>>%GITHUB_ENV%
+          echo VCPKG=%VCPKG%>>%GITHUB_ENV%
+          echo FREETYPE_DIR=%VCPKG%>>%GITHUB_ENV%
+          echo FREEIMAGE_HOME=%VCPKG%>>%GITHUB_ENV%
+
+      - name: setup directories
+        working-directory: ${{runner.workspace}}
+        run: mkdir build nuget
+
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - uses: microsoft/setup-msbuild@v1.0.2
+
+      - working-directory: ${{runner.workspace}}/nuget
+        run: nuget install -ExcludeVersion VideoLAN.LibVLC.Windows
+      - run: vcpkg install curl:x86-windows-static-md
+      - run: vcpkg install freeimage:x86-windows-static-md
+      - run: vcpkg install freetype:x86-windows-static-md
+      - run: vcpkg install rapidjson:x86-windows-static-md
+      - run: vcpkg install sdl2:x86-windows-static-md
+
+      - name: Run cmake
+        working-directory: ${{runner.workspace}}
+        run: cmake ${{github.workspace}}
+          -B build
+          -A %Platform%
+          -DRAPIDJSON_INCLUDE_DIRS=%VCPKG%/include
+          -DCURL_INCLUDE_DIR=%VCPKG%/include
+          -DSDL2_INCLUDE_DIR=%VCPKG%/include/SDL2
+          -DVLC_INCLUDE_DIR=%NUGET%/VideoLAN.LibVLC.Windows/build/x86/include
+          -DCURL_LIBRARY=%VCPKG%/lib/*.lib
+          -DSDL2_LIBRARY=%VCPKG%/lib/manual-link/SDL2main.lib
+          -DVLC_LIBRARIES=%NUGET%/VideoLAN.LibVLC.Windows/build/x86/libvlc*.lib
+          -DVLC_VERSION=3.0.11
+          -DCMAKE_EXE_LINKER_FLAGS=/SAFESEH:NO
+
+      - working-directory: ${{runner.workspace}}
+        run: cmake --build build --config %BUILD_TYPE%
+
+      - name: Correct artifacts
+        working-directory: ${{github.workspace}}/Release
+        run: |
+          cp ${{env.NUGET}}/VideoLAN.LibVLC.Windows/build/x86/libvlc.dll .
+          cp ${{env.NUGET}}/VideoLAN.LibVLC.Windows/build/x86/libvlccore.dll .
+          cp -r ${{github.workspace}}/resources resources
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: EmulationStation
+          path: |
+            ${{github.workspace}}/Release/emulationstation.exe
+            ${{github.workspace}}/Release/libvlc.dll
+            ${{github.workspace}}/Release/libvlccore.dll
+            ${{github.workspace}}/Release/resources/

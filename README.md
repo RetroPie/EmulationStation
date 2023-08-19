@@ -12,21 +12,21 @@ Building on Linux
 
 EmulationStation uses some C++11 code, which means you'll need to use at least g++-4.7 on Linux, or VS2010 on Windows, to compile.
 
-EmulationStation has a few dependencies. For building, you'll need CMake, SDL2, FreeImage, FreeType, LibVLC (ver. 3 or later), cURL and RapidJSON.  You also should probably install the `fonts-droid` package which contains fallback fonts for Chinese/Japanese/Korean characters, but ES will still work fine without it (this package is only used at run-time).
+EmulationStation has a few dependencies. For building, you'll need CMake, SDL2, FreeImage, FreeType, LibVLC (ver. 3 or later), cURL, RapidJSON and PugiXML.  You also should probably install the `fonts-droid` package which contains fallback fonts for Chinese/Japanese/Korean characters, but ES will still work fine without it (this package is only used at run-time).
 
 ### On Debian/Ubuntu:
 All of this be easily installed with `apt-get`:
 ```bash
 sudo apt-get install libsdl2-dev libfreeimage-dev libfreetype6-dev libcurl4-openssl-dev rapidjson-dev \
   libasound2-dev libgles2-mesa-dev build-essential cmake fonts-droid-fallback libvlc-dev \
-  libvlccore-dev vlc-bin
+  libvlccore-dev vlc-bin libpugixml-dev
 ```
 ### On Fedora:
 All of this be easily installed with `dnf` (with rpmfusion activated) :
 ```bash
 sudo dnf install SDL2-devel freeimage-devel freetype-devel curl-devel \
   alsa-lib-devel mesa-libGL-devel cmake \
-  vlc-devel rapidjson-devel
+  vlc-devel rapidjson-devel libpugixml-devel
 ```
 
 **Note**: this repository uses a git submodule - to checkout the source and all submodules, use
@@ -40,7 +40,6 @@ or
 ```bash
 git clone https://github.com/RetroPie/EmulationStation.git
 cd EmulationStation
-git submodule update --init
 ```
 
 Then, generate and build the Makefile with CMake:
@@ -125,6 +124,11 @@ c:\src>.\vcpkg\vcpkg install sdl2:x86-windows-static-md
 ```batchfile
 c:\src>.\vcpkg\vcpkg install rapidjson:x86-windows-static-md
 ```
+* Use vcpkg to download the latest [pugixml](http://pugixml.org/). This library provides a light-weight C++ XML processing library.
+
+```batchfile
+c:\src>.\vcpkg\vcpkg install pugixml:x86-windows-static-md
+```
 
 * Using the example shown below, configure environment variables to point to the libraries that were installed in the above steps. Please note that the below example intentionally uses forward slashes for compatibility with CMake.
 
@@ -135,6 +139,7 @@ C:\src\EmulationStation>set FREETYPE_DIR="%VCPKG%"
 C:\src\EmulationStation>set FREEIMAGE_HOME="%VCPKG%"
 C:\src\EmulationStation>set VLC_HOME="%NUGET%/VideoLAN.LibVLC.Windows/build/x86"
 C:\src\EmulationStation>set RAPIDJSON_INCLUDE_DIRS="%VCPKG%/include"
+C:\src\EmulationStation>set PUGIXML_INCLUDE_DIR="%VCPKG%/include"
 C:\src\EmulationStation>set CURL_INCLUDE_DIR="%VCPKG%/include"
 C:\src\EmulationStation>set SDL2_INCLUDE_DIR="%VCPKG%/include/SDL2"
 C:\src\EmulationStation>set VLC_INCLUDE_DIR="%VLC_HOME%/include"
@@ -150,6 +155,7 @@ C:\src\EmulationStation>set VLC_VERSION=3.0.11
 C:\src\EmulationStation>mkdir build
 C:\src\EmulationStation>cmake . -B build -A Win32 ^
 -DRAPIDJSON_INCLUDE_DIRS=%RAPIDJSON_INCLUDE_DIRS% ^
+-DPUGIXML_INCLUDE_DIR=%PUGIXML_INCLUDE_DIR% ^
 -DCURL_INCLUDE_DIR=%CURL_INCLUDE_DIR% ^
 -DSDL2_INCLUDE_DIR=%SDL2_INCLUDE_DIR% ^
 -DVLC_INCLUDE_DIR=%VLC_INCLUDE_DIR% ^

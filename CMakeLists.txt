@@ -102,6 +102,7 @@ find_package(SDL2 REQUIRED)
 find_package(CURL REQUIRED)
 find_package(VLC REQUIRED)
 find_package(RapidJSON REQUIRED)
+find_package(PugiXML REQUIRED)
 
 #add libCEC support
 if(CEC)
@@ -221,7 +222,7 @@ set(COMMON_LIBRARIES
     ${SDL2_LIBRARIES}
     ${CURL_LIBRARIES}
     ${VLC_LIBRARIES}
-    pugixml
+    ${PUGIXML_LIBRARIES}
     nanosvg
 )
 

@@ -19,7 +19,7 @@ All of this be easily installed with `apt-get`:
 ```bash
 sudo apt-get install libsdl2-dev libfreeimage-dev libfreetype6-dev libcurl4-openssl-dev rapidjson-dev \
   libasound2-dev libgles2-mesa-dev build-essential cmake fonts-droid-fallback libvlc-dev \
-  libvlccore-dev vlc-bin
+  libvlccore-dev vlc-bin libpugixml-dev
 ```
 ### On Fedora:
 All of this be easily installed with `dnf` (with rpmfusion activated) :

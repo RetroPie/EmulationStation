@@ -184,7 +184,8 @@ void ScreenScraperRequest::process(const std::unique_ptr<HttpReq>& req, std::vec
 	assert(req->status() == HttpReq::REQ_SUCCESS);
 
 	pugi::xml_document doc;
-	pugi::xml_parse_result parseResult = doc.load(req->getContent().c_str());
+	auto content = req->getContent();
+	pugi::xml_parse_result parseResult = doc.load_buffer(getContent(), content.size());
 
 	if (!parseResult)
 	{

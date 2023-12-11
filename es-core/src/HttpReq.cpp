@@ -77,7 +77,7 @@ HttpReq::HttpReq(const std::string& url)
 	}
 
 	//set curl restrict redirect protocols
-	err = curl_easy_setopt(mHandle, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+	err = curl_easy_setopt(mHandle, CURLOPT_REDIR_PROTOCOLS_STR, CURLPROTO_HTTP | CURLPROTO_HTTPS);
 	if(err != CURLE_OK)
 	{
 		mStatus = REQ_IO_ERROR;

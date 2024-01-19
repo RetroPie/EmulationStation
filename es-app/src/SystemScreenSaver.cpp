@@ -600,6 +600,8 @@ void SystemScreenSaver::selectGame(bool launch)
 		view->setCursor(gameToSelect);
 		if (launch)
 			view->launch(gameToSelect);
+		else
+			view->setViewportTop(-1);
 	}
 }
 

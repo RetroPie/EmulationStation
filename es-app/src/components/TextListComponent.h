@@ -155,8 +155,9 @@ void TextListComponent<T>::render(const Transform4x4f& parentTrans)
 
 	if(mViewportTop == -1)
 	{
-		// returning from screen saver activated game launch
+		// returning from screen saver activated game launch or screensaver press 'A'
 		mViewportTop = mCursor - mViewportHeight/2;
+		mCursorPrev = -1; // reset to pristine to calc viewportTop() right when jumping to game with 'A' pressed
 	}
 	if(mCursor != mCursorPrev)
 	{

@@ -4,6 +4,8 @@
 
 #include "components/MenuComponent.h"
 
+#include <any>
+
 template<typename T>
 class OptionListComponent;
 class SwitchComponent;
@@ -30,7 +32,7 @@ public:
 private:
 	void initializeMenu();
 	void saveSettings();
-	void applyGroupSettings(std::string settingsLabel, std::vector< SystemGames>* results);
+	void applyGroupSettings(std::string settingsLabel, const std::map<std::string, std::any> &initialValues, std::vector<SystemGames>* results);
 	void addSystemsToMenu();
 	void addEntry(const char* name, unsigned int color, bool add_arrow, const std::function<void()>& func);
 	void selectEntries(std::map<std::string, CollectionSystemData> collection, std::string settingsLabel, int defaultValue, std::vector< SystemGames>* results);
@@ -39,7 +41,8 @@ private:
 	void selectAutoCollections();
 	void selectCustomCollections();
 
-	std::string collectionListsToString(std::vector< SystemGames> collectionLists);
+	template <typename Map>
+	bool equal(Map const &_this, Map const &_that);
 
 	bool mNeedsCollectionRefresh;
 

@@ -1,6 +1,7 @@
 #include "Settings.h"
 
 #include "utils/FileSystemUtil.h"
+#include "utils/StringUtil.h"
 #include "Log.h"
 #include "Scripting.h"
 #include "platform.h"
@@ -140,9 +141,12 @@ void Settings::setDefaults()
 	// Audio out device for Video playback using OMX player.
 	mStringMap["OMXAudioDev"] = "both";
 	mStringMap["RandomCollectionMaxItems"] = "";
-	mStringMap["RandomCollectionSystemsAuto"] = "";
-	mStringMap["RandomCollectionSystemsCustom"] = "";
-	mStringMap["RandomCollectionSystems"] = "";
+	std::map<std::string, std::any> m1;
+	mMapMap["RandomCollectionSystemsAuto"] = m1;
+	std::map<std::string, std::any> m2;
+	mMapMap["RandomCollectionSystemsCustom"] = m2;
+	std::map<std::string, std::any> m3;
+	mMapMap["RandomCollectionSystems"] = m3;
 	mStringMap["RandomCollectionExclusionCollection"] = "";
 	mStringMap["CollectionSystemsAuto"] = "";
 	mStringMap["CollectionSystemsCustom"] = "";
@@ -218,6 +222,47 @@ void Settings::saveFile()
 		node.append_attribute("value").set_value(iter->second.c_str());
 	}
 
+	for(auto &m : mMapMap)
+	{
+		pugi::xml_node node = doc.append_child("map");
+		node.append_attribute("name").set_value(m.first.c_str());
+		std::string datatype = "unknown";
+		for(auto &[key, val] : m.second)
+		{
+			pugi::xml_node entry = node.append_child("string");
+			entry.append_attribute("name").set_value(key.c_str());
+			if (val.type() == typeid(int))
+			{
+				int i = std::any_cast<int>(val);
+				entry.append_attribute("value").set_value(i);
+				datatype = "int";
+			}
+			else if (val.type() == typeid(float))
+			{
+				float f = std::any_cast<float>(val);
+				entry.append_attribute("value").set_value(f);
+				datatype = "float";
+			}
+			else if (val.type() == typeid(bool))
+			{
+				bool b = std::any_cast<bool>(val);
+				entry.append_attribute("value").set_value(b);
+				datatype = "bool";
+			}
+			else if (val.type() == typeid(std::string))
+			{
+				std::string s = std::any_cast<std::string>(val);
+				entry.append_attribute("value").set_value(s.c_str());
+				datatype = "string";
+			}
+			else
+			{
+				LOG(LogWarning) << "Map: '" << m.first << "'. Unsupported data type '"<< val.type().name() <<"' for key. Not persisted!" << key;
+			}
+		}
+		node.append_attribute("type").set_value(datatype.c_str());
+	}
+
 	doc.save_file(path.c_str());
 
 	Scripting::fireEvent("config-changed");
@@ -248,8 +293,58 @@ void Settings::loadFile()
 	for(pugi::xml_node node = doc.child("string"); node; node = node.next_sibling("string"))
 		setString(node.attribute("name").as_string(), node.attribute("value").as_string());
 
+	for(pugi::xml_node node = doc.child("map"); node; node = node.next_sibling("map"))
+	{
+		std::string mapName = node.attribute("name").as_string();
+		std::string mapType = node.attribute("type").as_string();
+		std::map<std::string, std::any> _map;
+		for(pugi::xml_node entry : node.children("string"))
+		{
+			if (mapType == "int")
+			{
+				_map[entry.attribute("name").as_string()] = entry.attribute("value").as_int();
+			}
+			else if (mapType == "float")
+			{
+				_map[entry.attribute("name").as_string()] = entry.attribute("value").as_float();
+			}
+			else if (mapType == "bool")
+			{
+				_map[entry.attribute("name").as_string()] = entry.attribute("value").as_bool();
+			}
+			else if (mapType == "string")
+			{
+				_map[entry.attribute("name").as_string()] = entry.attribute("value").as_string();
+			}
+			else
+			{
+				LOG(LogWarning) << "Map: '" << mapName << "'. Unsupported data type '"<< mapType <<"'. Value ignored!";
+			}
+		}
+		setMap(mapName, _map);
+	}
+
 	processBackwardCompatibility();
 }
+
+
+void Settings::setMap(const std::string& key, const std::map<std::string, std::any>& map)
+{
+	mMapMap[key] = map;
+}
+
+const std::map<std::string, std::any> Settings::getMap(const std::string& key)
+{
+	if(mMapMap.find(key) == mMapMap.cend())
+	{
+		LOG(LogError) << "Tried to use undefined setting " << key << "!";
+		std::map<std::string, std::any> empty;
+		return empty;
+
+	}
+	return mMapMap[key];
+}
+
 
 template<typename Map>
 void Settings::renameSetting(Map& map, std::string&& oldName, std::string&& newName)

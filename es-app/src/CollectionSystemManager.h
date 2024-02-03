@@ -3,6 +3,7 @@
 #define ES_APP_COLLECTION_SYSTEM_MANAGER_H
 
 #include <map>
+#include <any>
 #include <SDL_timer.h>
 #include <string>
 #include <vector>
@@ -13,9 +14,13 @@ class Window;
 struct SystemEnvironmentData;
 class FileFilterIndex;
 
-#define RANDOM_SYSTEM_MAX 5
-#define DEFAULT_RANDOM_SYSTEM_GAMES 1
-#define DEFAULT_RANDOM_COLLECTIONS_GAMES 0
+inline const std::string CUSTOM_COLL_ID = "collections";
+inline const std::string RANDOM_COLL_ID = "random";
+constexpr int LAST_PLAYED_MAX = 50;
+
+constexpr int RANDOM_SYSTEM_MAX = 5;
+constexpr int DEFAULT_RANDOM_SYSTEM_GAMES = 1;
+constexpr int DEFAULT_RANDOM_COLLECTIONS_GAMES = 0;
 
 enum CollectionSystemType
 {
@@ -44,8 +49,6 @@ struct CollectionSystemData
 	bool isPopulated;
 	bool needsSave;
 };
-
-std::map<std::string, int> stringToRandomSettingsMap(std::string sourceStr);
 
 class CollectionSystemManager
 {
@@ -109,8 +112,8 @@ private:
 	void populateAutoCollection(CollectionSystemData* sysData);
 	void populateCustomCollection(CollectionSystemData* sysData);
 	void addRandomGames(SystemData* newSys, SystemData* sourceSystem, FileData* rootFolder, FileFilterIndex* index,
-		std::map<std::string, int> settingsValues, int defaultValue);
-	void populateRandomCollectionFromCollections(std::map<std::string, int> settingsValues);
+		std::map<std::string, std::map<std::string, std::any>> mapsForRandomColl, int defaultValue);
+	void populateRandomCollectionFromCollections(std::map<std::string, std::map<std::string, std::any>> mapsForRandomColl);
 
 	void removeCollectionsFromDisplayedSystems();
 	void addEnabledCollectionsToDisplayedSystems(std::map<std::string, CollectionSystemData>* colSystemData, bool processRandom);

@@ -16,20 +16,20 @@ GuiRandomCollectionOptions::GuiRandomCollectionOptions(Window* window) : GuiComp
 	autoCollectionLists.clear();
 	systemLists.clear();
 	mNeedsCollectionRefresh = false;
-	
+
 	initializeMenu();
 }
 
 void GuiRandomCollectionOptions::initializeMenu()
 {
 	// get collections
-	addEntry("INCLUDED SYSTEMS", 0x777777FF, true, [this] { selectSystems(); });
-	addEntry("INCLUDED AUTO COLLECTIONS", 0x777777FF, true, [this] { selectAutoCollections(); });
-	addEntry("INCLUDED CUSTOM COLLECTIONS", 0x777777FF, true, [this] { selectCustomCollections(); });
-	
+	addEntry("INCLUDE SYSTEMS", 0x777777FF, true, [this] { selectSystems(); });
+	addEntry("INCLUDE AUTO COLLECTIONS", 0x777777FF, true, [this] { selectAutoCollections(); });
+	addEntry("INCLUDE CUSTOM COLLECTIONS", 0x777777FF, true, [this] { selectCustomCollections(); });
+
 	// Add option to exclude games from a collection
 	exclusionCollection = std::make_shared< OptionListComponent<std::string> >(mWindow, "EXCLUDE GAMES FROM", false);
-	
+
 	// Add default option
 	exclusionCollection->add("<NONE>", "", Settings::getInstance()->getString("RandomCollectionExclusionCollection") == "");
 
@@ -41,21 +41,20 @@ void GuiRandomCollectionOptions::initializeMenu()
 	}
 
 	mMenu.addWithLabel("EXCLUDE GAMES FROM", exclusionCollection);
-	
 
 	// Add option to trim random collection items
 	trimRandom = std::make_shared< OptionListComponent<std::string> >(mWindow, "MAX GAMES", false);
-	
+
 	// Add default entry
 	trimRandom->add("ALL", "", Settings::getInstance()->getString("RandomCollectionMaxItems") == "");
-	
-	// add all enabled Custom Systems
+
+	// add limit values for size of random collection
 	for(int i = 5; i <= 50; i = i+5)
 	{
 		trimRandom->add(std::to_string(i), std::to_string(i), Settings::getInstance()->getString("RandomCollectionMaxItems") == std::to_string(i));
 	}
 
-	mMenu.addWithLabel("MAX ITEMS", trimRandom);
+	mMenu.addWithLabel("MAX GAMES", trimRandom);
 
 	addChild(&mMenu);
 
@@ -87,20 +86,20 @@ void GuiRandomCollectionOptions::addEntry(const char* name, unsigned int color, 
 void GuiRandomCollectionOptions::selectSystems()
 {
 	std::map<std::string, CollectionSystemData> systems;
-	for(auto sysIt = SystemData::sSystemVector.cbegin(); sysIt != SystemData::sSystemVector.cend(); sysIt++)
+	for(auto &sys : SystemData::sSystemVector)
 	{
 		// we won't iterate all collections
-		if ((*sysIt)->isGameSystem() && !(*sysIt)->isCollection()) 
+		if (sys->isGameSystem() && !sys->isCollection())
 		{
 			CollectionSystemDecl sysDecl;
-			sysDecl.name = (*sysIt)->getName();
-			sysDecl.longName = (*sysIt)->getFullName();
+			sysDecl.name = sys->getName();
+			sysDecl.longName = sys->getFullName();
 
 			CollectionSystemData newCollectionData;
-			newCollectionData.system = (*sysIt);
+			newCollectionData.system = sys;
 			newCollectionData.decl = sysDecl;
 			newCollectionData.isEnabled = true;
-			
+
 			systems[sysDecl.name] = newCollectionData;
 		}
 	}
@@ -122,37 +121,31 @@ GuiRandomCollectionOptions::~GuiRandomCollectionOptions()
 
 }
 
-std::string GuiRandomCollectionOptions::collectionListsToString(std::vector< SystemGames> collectionLists) {
-	std::string result;
-	for (std::vector< SystemGames>::const_iterator it = collectionLists.cbegin(); it != collectionLists.cend(); it++)
-	{
-		if (it != collectionLists.cbegin())
-			result += ",";
-
-		result += (*it).name + ":" + std::to_string((*it).gamesSelection->getSelected());
-	}
-	return result;
-}
-
 void GuiRandomCollectionOptions::selectEntries(std::map<std::string, CollectionSystemData> collection, std::string settingsLabel, int defaultValue, std::vector< SystemGames>* results) {
 	auto s = new GuiSettings(mWindow, "INCLUDE GAMES FROM");
-	
-	std::map<std::string, int> settingsValues = stringToRandomSettingsMap(Settings::getInstance()->getString(settingsLabel));
+
+	std::map<std::string, std::any> initValues = Settings::getInstance()->getMap(settingsLabel);
 
 	results->clear();
 
-	// add Auto Systems
-	for(std::map<std::string, CollectionSystemData>::const_iterator it = collection.cbegin() ; it != collection.cend() ; it++ )
+	for(auto &[_, csd] : collection)
 	{
-		if (it->second.system != CollectionSystemManager::get()->getRandomCollection())
+		if (csd.system != CollectionSystemManager::get()->getRandomCollection())
 		{
 			ComponentListRow row;
 
-			std::string label = it->second.decl.longName;
-			int selectedValue = defaultValue; 
+			std::string label = csd.decl.longName;
+			int selectedValue = defaultValue;
 
-			if (settingsValues.find(label) != settingsValues.end()) 
-				selectedValue = Math::min(RANDOM_SYSTEM_MAX, settingsValues[label]);
+			if (initValues.find(label) != initValues.end())
+			{
+				int v = std::any_cast<int>(initValues[label]);
+				// we won't add more than the max and less than 0
+				selectedValue = Math::max(Math::min(RANDOM_SYSTEM_MAX, v), 0);
+				mNeedsCollectionRefresh |= selectedValue != v;
+			}
+
+			initValues[label] = selectedValue;
 
 			std::shared_ptr<NumberList> colItems = std::make_shared<NumberList>(mWindow, label, false);
 			for (int i = 0; i <= RANDOM_SYSTEM_MAX; i++)
@@ -170,22 +163,34 @@ void GuiRandomCollectionOptions::selectEntries(std::map<std::string, CollectionS
 		}
 
 	}
-	
+
 	setSize((float)Renderer::getScreenWidth(), (float)Renderer::getScreenHeight());
 	s->setPosition((mSize.x() - s->getSize().x()) / 2, (mSize.y() - s->getSize().y()) / 2);
-	s->addSaveFunc([this, settingsLabel, results] { applyGroupSettings(settingsLabel, results); });
+	s->addSaveFunc([this, settingsLabel, initValues, results] { applyGroupSettings(settingsLabel, initValues, results); });
 	mWindow->pushGui(s);
 }
 
-void GuiRandomCollectionOptions::applyGroupSettings(std::string settingsLabel, std::vector< SystemGames>* results)
+
+template <typename Map>
+bool GuiRandomCollectionOptions::equal(Map const &_this, Map const &_that)
 {
-	std::string curOptions = GuiRandomCollectionOptions::collectionListsToString((*results));
-	std::string prevOptions = Settings::getInstance()->getString(settingsLabel);
-	
-	if (!curOptions.empty() && curOptions != prevOptions) 
+    return _this.size() == _that.size() // map key count
+		&& std::equal(_this.begin(), _this.end(), _that.begin(), [] (auto a, auto b) { return a.first == b.first; }) // map keys
+		&& std::equal(_this.begin(), _this.end(), _that.begin(), [] (auto a, auto b) { return std::any_cast<int>(a.second) == std::any_cast<int>(b.second); }); // map values
+}
+
+
+void GuiRandomCollectionOptions::applyGroupSettings(std::string settingsLabel, const std::map<std::string, std::any> &initialValues, std::vector<SystemGames> *results)
+{
+	std::map<std::string,std::any> currentValues;
+	for (auto it = results->begin(); it != results->end(); ++it)
 	{
-		Settings::getInstance()->setString(settingsLabel, curOptions);
+		currentValues[(*it).name] = (*it).gamesSelection->getSelected();
+	}
+	if (!equal(currentValues, initialValues))
+	{
 		mNeedsCollectionRefresh = true;
+		Settings::getInstance()->setMap(settingsLabel, currentValues);
 	}
 }
 
@@ -195,14 +200,13 @@ void GuiRandomCollectionOptions::saveSettings()
 	std::string prevTrim = Settings::getInstance()->getString("RandomCollectionMaxItems");
 	Settings::getInstance()->setString("RandomCollectionMaxItems", curTrim);
 
-
 	std::string curExclusion = exclusionCollection->getSelected();
 	std::string prevExclusion = Settings::getInstance()->getString("RandomCollectionExclusionCollection");
 	Settings::getInstance()->setString("RandomCollectionExclusionCollection", curExclusion);
 
 	mNeedsCollectionRefresh |= (curTrim != prevTrim || curExclusion != prevExclusion);
 
-	if (mNeedsCollectionRefresh) 
+	if (mNeedsCollectionRefresh)
 	{
 		Settings::getInstance()->saveFile();
 		CollectionSystemManager::get()->recreateCollection(CollectionSystemManager::get()->getRandomCollection());

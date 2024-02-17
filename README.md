@@ -19,7 +19,7 @@ All of this be easily installed with `apt-get`:
 ```bash
 sudo apt-get install libsdl2-dev libfreeimage-dev libfreetype6-dev libcurl4-openssl-dev rapidjson-dev \
   libasound2-dev libgles2-mesa-dev build-essential cmake fonts-droid-fallback libvlc-dev \
-  libvlccore-dev vlc-bin libpugixml-dev
+  libvlccore-dev vlc-bin
 ```
 ### On Fedora:
 All of this be easily installed with `dnf` (with rpmfusion activated) :
@@ -29,6 +29,8 @@ sudo dnf install SDL2-devel freeimage-devel freetype-devel curl-devel \
   vlc-devel rapidjson-devel
 ```
 
+ Optionaly, `pugixml` can be installed and used (Debian package: `libpugixml-dev`, Fedora/SuSE package: `pugixml-devel`), but EmulationStation can use it's own included copy if not found.
+ 
 **Note**: this repository uses a git submodule - to checkout the source and all submodules, use
 
 ```bash

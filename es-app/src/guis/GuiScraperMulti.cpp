@@ -143,11 +143,24 @@ void GuiScraperMulti::finish()
 			ss << "\n" << mTotalSkipped << " GAME" << ((mTotalSkipped > 1) ? "S" : "") << " SKIPPED.";
 	}
 
-	mWindow->pushGui(new GuiMsgBox(mWindow, ss.str(),
-		"OK", [&] { delete this; }));
+	mWindow->pushGui(new GuiMsgBox(
+		mWindow, ss.str(),
+		"OK", [&]
+		{ delete this; },
+		"", nullptr,
+		"", nullptr,
+		ViewController::get()->getState().getSystem()->getTheme()
+	));
 
 	mIsProcessing = false;
 	PowerSaver::resume();
+}
+
+HelpStyle GuiScraperMulti::getHelpStyle()
+{
+	HelpStyle style = HelpStyle();
+	style.applyTheme(ViewController::get()->getState().getSystem()->getTheme(), "system");
+	return style;
 }
 
 std::vector<HelpPrompt> GuiScraperMulti::getHelpPrompts()

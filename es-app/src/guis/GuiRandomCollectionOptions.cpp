@@ -220,6 +220,13 @@ bool GuiRandomCollectionOptions::input(InputConfig* config, Input input)
 	return false;
 }
 
+HelpStyle GuiRandomCollectionOptions::getHelpStyle()
+{
+	HelpStyle style = HelpStyle();
+	style.applyTheme(ViewController::get()->getState().getSystem()->getTheme(), "system");
+	return style;
+}
+
 std::vector<HelpPrompt> GuiRandomCollectionOptions::getHelpPrompts()
 {
 	std::vector<HelpPrompt> prompts = mMenu.getHelpPrompts();

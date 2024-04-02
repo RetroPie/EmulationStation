@@ -8,10 +8,12 @@
 #include "components/TextComponent.h"
 #include "guis/GuiMsgBox.h"
 #include "guis/GuiTextEditPopup.h"
+#include "views/ViewController.h"
 #include "resources/Font.h"
 #include "utils/StringUtil.h"
 #include "FileData.h"
 #include "Log.h"
+#include "SystemData.h"
 #include "Window.h"
 
 ScraperSearchComponent::ScraperSearchComponent(Window* window, SearchType type) : GuiComponent(window),
@@ -456,7 +458,8 @@ void ScraperSearchComponent::openInputScreen(ScraperSearchParams& params)
 	mWindow->pushGui(new GuiTextEditPopup(mWindow, "SEARCH FOR",
 		// initial value is last search if there was one, otherwise the clean path name
 		params.nameOverride.empty() ? params.game->getCleanName() : params.nameOverride,
-		searchForFunc, false, "SEARCH"));
+		searchForFunc, false, "SEARCH",
+		ViewController::get()->getState().getSystem()->getTheme()));
 }
 
 std::vector<HelpPrompt> ScraperSearchComponent::getHelpPrompts()

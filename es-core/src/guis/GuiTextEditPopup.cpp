@@ -4,9 +4,9 @@
 #include "components/MenuComponent.h"
 #include "components/TextEditComponent.h"
 
-GuiTextEditPopup::GuiTextEditPopup(Window* window, const std::string& title, const std::string& initValue,
-	const std::function<void(const std::string&)>& okCallback, bool multiLine, const char* acceptBtnText)
-	: GuiComponent(window), mBackground(window, ":/frame.png"), mGrid(window, Vector2i(1, 3)), mMultiLine(multiLine)
+GuiTextEditPopup::GuiTextEditPopup(Window *window, const std::string &title, const std::string &initValue,
+								   const std::function<void(const std::string &)> &okCallback, bool multiLine, const char *acceptBtnText, const std::shared_ptr<ThemeData> &theme)
+	: GuiComponent(window), mBackground(window, ":/frame.png"), mGrid(window, Vector2i(1, 3)), mMultiLine(multiLine), mTheme(theme)
 {
 	addChild(&mBackground);
 	addChild(&mGrid);
@@ -63,6 +63,17 @@ bool GuiTextEditPopup::input(InputConfig* config, Input input)
 	}
 
 	return false;
+}
+
+HelpStyle GuiTextEditPopup::getHelpStyle()
+{
+	if (mTheme) {
+		HelpStyle style = HelpStyle();
+		style.applyTheme(mTheme, "system");
+		return style;
+	}
+
+	return GuiComponent::getHelpStyle();
 }
 
 std::vector<HelpPrompt> GuiTextEditPopup::getHelpPrompts()

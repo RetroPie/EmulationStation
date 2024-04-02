@@ -119,6 +119,13 @@ bool GuiScraperStart::input(InputConfig* config, Input input)
 	return false;
 }
 
+HelpStyle GuiScraperStart::getHelpStyle()
+{
+	HelpStyle style = HelpStyle();
+	style.applyTheme(ViewController::get()->getState().getSystem()->getTheme(), "system");
+	return style;
+}
+
 std::vector<HelpPrompt> GuiScraperStart::getHelpPrompts()
 {
 	std::vector<HelpPrompt> prompts = mMenu.getHelpPrompts();

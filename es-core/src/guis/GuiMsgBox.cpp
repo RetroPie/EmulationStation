@@ -5,11 +5,15 @@
 
 #define HORIZONTAL_PADDING_PX 20
 
-GuiMsgBox::GuiMsgBox(Window* window, const std::string& text,
-	const std::string& name1, const std::function<void()>& func1,
-	const std::string& name2, const std::function<void()>& func2,
-	const std::string& name3, const std::function<void()>& func3) : GuiComponent(window),
-	mBackground(window, ":/frame.png"), mGrid(window, Vector2i(1, 2))
+GuiMsgBox::GuiMsgBox(Window *window, const std::string &text,
+	const std::string &name1, const std::function<void()> &func1,
+	const std::string &name2, const std::function<void()> &func2,
+	const std::string &name3, const std::function<void()> &func3,
+	const std::shared_ptr<ThemeData> &theme):
+		GuiComponent(window),
+		mBackground(window, ":/frame.png"),
+		mGrid(window, Vector2i(1, 2)),
+		mTheme(theme)
 {
 	float width = Renderer::getScreenWidth() * 0.6f; // max width
 	float minWidth = Renderer::getScreenWidth() * 0.3f; // minimum width
@@ -102,6 +106,18 @@ void GuiMsgBox::deleteMeAndCall(const std::function<void()>& func)
 	if(funcCopy)
 		funcCopy();
 
+}
+
+HelpStyle GuiMsgBox::getHelpStyle()
+{
+	if (mTheme)
+	{
+		HelpStyle style = HelpStyle();
+		style.applyTheme(mTheme, "system");
+		return style;
+	}
+
+	return GuiComponent::getHelpStyle();
 }
 
 std::vector<HelpPrompt> GuiMsgBox::getHelpPrompts()

@@ -8,6 +8,7 @@
 #include "utils/StringUtil.h"
 #include "views/ViewController.h"
 #include "CollectionSystemManager.h"
+#include "SystemData.h"
 #include "Window.h"
 
 GuiCollectionSystemsOptions::GuiCollectionSystemsOptions(Window* window) : GuiComponent(window), mMenu(window, "GAME COLLECTION SETTINGS")
@@ -64,7 +65,14 @@ void GuiCollectionSystemsOptions::initializeMenu()
 		createCollection(name);
 	};
 	row.makeAcceptInputHandler([this, createCustomCollection] {
-		mWindow->pushGui(new GuiTextEditPopup(mWindow, "New Collection Name", "", createCustomCollection, false));
+		mWindow->pushGui(new GuiTextEditPopup(
+			mWindow,
+			"New Collection Name",
+			"",
+			createCustomCollection,
+			false, "OK",
+			ViewController::get()->getState().getSystem()->getTheme()
+		));
 	});
 
 	mMenu.addRow(row);
@@ -274,6 +282,13 @@ bool GuiCollectionSystemsOptions::input(InputConfig* config, Input input)
 
 
 	return false;
+}
+
+HelpStyle GuiCollectionSystemsOptions::getHelpStyle()
+{
+	HelpStyle style = HelpStyle();
+	style.applyTheme(ViewController::get()->getState().getSystem()->getTheme(), "system");
+	return style;
 }
 
 std::vector<HelpPrompt> GuiCollectionSystemsOptions::getHelpPrompts()

@@ -12,12 +12,15 @@ class TextEditComponent;
 class GuiTextEditPopup : public GuiComponent
 {
 public:
-	GuiTextEditPopup(Window* window, const std::string& title, const std::string& initValue,
-		const std::function<void(const std::string&)>& okCallback, bool multiLine, const char* acceptBtnText = "OK");
+	GuiTextEditPopup(Window *window, const std::string &title, const std::string &initValue,
+					 const std::function<void(const std::string &)> &okCallback, bool multiLine,
+					 const char *acceptBtnText = "OK", const std::shared_ptr<ThemeData> &theme = NULL);
 
 	bool input(InputConfig* config, Input input) override;
 	void onSizeChanged() override;
+
 	std::vector<HelpPrompt> getHelpPrompts() override;
+	HelpStyle getHelpStyle() override;
 
 private:
 	NinePatchComponent mBackground;
@@ -26,6 +29,7 @@ private:
 	std::shared_ptr<TextComponent> mTitle;
 	std::shared_ptr<TextEditComponent> mText;
 	std::shared_ptr<ComponentGrid> mButtonGrid;
+	std::shared_ptr<ThemeData> mTheme;
 
 	bool mMultiLine;
 };

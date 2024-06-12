@@ -23,6 +23,11 @@ endif()
 
 project(emulationstation-all)
 
+
+# program name to be used as a reference when looking up resources
+set(AppDataName "EmulationStation" CACHE STRING "Internal program name passed to compiler")
+add_definitions(-DAPPDATANAME="${AppDataName}")
+
 #-------------------------------------------------------------------------------
 #add local find scripts to CMAKE path
 LIST(APPEND CMAKE_MODULE_PATH
@@ -277,6 +282,9 @@ set(dir ${CMAKE_CURRENT_SOURCE_DIR})
 set(EXECUTABLE_OUTPUT_PATH ${dir} CACHE PATH "Build directory" FORCE)
 set(LIBRARY_OUTPUT_PATH ${dir} CACHE PATH "Build directory" FORCE)
 
+# install rules for resources
+include(GNUInstallDirs)
+install(DIRECTORY resources DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/${AppDataName}/resources")
 
 #-------------------------------------------------------------------------------
 # add each component

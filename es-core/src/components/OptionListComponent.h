@@ -5,6 +5,8 @@
 #include "GuiComponent.h"
 #include "Log.h"
 #include "Window.h"
+#include "SystemData.h"
+#include "views/ViewController.h"
 
 //Used to display a list of options.
 //Can select one or multiple options.
@@ -123,6 +125,14 @@ private:
 			}
 
 			return GuiComponent::input(config, input);
+		}
+
+		HelpStyle getHelpStyle() override
+		{
+			HelpStyle style = HelpStyle();
+			style.applyTheme(ViewController::get()->getState().getSystem()->getTheme(), "system");
+
+			return style;
 		}
 
 		std::vector<HelpPrompt> getHelpPrompts() override
@@ -314,6 +324,14 @@ private:
 				}
 			}
 		}
+	}
+
+	HelpStyle getHelpStyle() override
+	{
+		HelpStyle style = HelpStyle();
+		style.applyTheme(ViewController::get()->getState().getSystem()->getTheme(), "system");
+
+		return style;
 	}
 
 	std::vector<HelpPrompt> getHelpPrompts() override

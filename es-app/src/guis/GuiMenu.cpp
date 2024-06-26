@@ -220,7 +220,8 @@ void GuiMenu::openUISettings()
 					LOG(LogDebug) << "Setting UI mode to " << selectedMode;
 					Settings::getInstance()->setString("UIMode", selectedMode);
 					Settings::getInstance()->saveFile();
-			}, "NO",nullptr));
+			}, "NO", nullptr,
+			"", nullptr, ViewController::get()->getState().getSystem()->getTheme()));
 		}
 	});
 
@@ -502,10 +503,14 @@ void GuiMenu::openOtherSettings()
 void GuiMenu::openConfigInput()
 {
 	Window* window = mWindow;
-	window->pushGui(new GuiMsgBox(window, "ARE YOU SURE YOU WANT TO CONFIGURE INPUT?", "YES",
+	window->pushGui(new GuiMsgBox(
+		window, "ARE YOU SURE YOU WANT TO CONFIGURE INPUT?", "YES",
 		[window] {
-		window->pushGui(new GuiDetectDevice(window, false, nullptr));
-	}, "NO", nullptr)
+			window->pushGui(new GuiDetectDevice(window, false, nullptr));
+		},
+		"NO", nullptr,
+		"", nullptr,
+		ViewController::get()->getState().getSystem()->getTheme())
 	);
 
 }
@@ -531,7 +536,13 @@ void GuiMenu::openQuitMenu()
 
 		if (confirm_quit) {
 			row.makeAcceptInputHandler([window] {
-				window->pushGui(new GuiMsgBox(window, "REALLY RESTART?", "YES", restart_es_fx, "NO", nullptr));
+				window->pushGui(new GuiMsgBox(
+					window, "REALLY RESTART?", "YES",
+					restart_es_fx,
+					"NO", nullptr,
+					"", nullptr,
+					ViewController::get()->getState().getSystem()->getTheme()
+				));
 			});
 		} else {
 			row.makeAcceptInputHandler(restart_es_fx);
@@ -549,7 +560,13 @@ void GuiMenu::openQuitMenu()
 			row.elements.clear();
 			if (confirm_quit) {
 				row.makeAcceptInputHandler([window] {
-					window->pushGui(new GuiMsgBox(window, "REALLY QUIT?", "YES", quit_es_fx, "NO", nullptr));
+					window->pushGui(new GuiMsgBox(
+						window, "REALLY QUIT?", "YES",
+						quit_es_fx,
+						"NO", nullptr,
+						"", nullptr,
+						ViewController::get()->getState().getSystem()->getTheme()
+					));
 				});
 			} else {
 				row.makeAcceptInputHandler(quit_es_fx);
@@ -570,7 +587,13 @@ void GuiMenu::openQuitMenu()
 	row.elements.clear();
 	if (confirm_quit) {
 		row.makeAcceptInputHandler([window] {
-			window->pushGui(new GuiMsgBox(window, "REALLY RESTART?", "YES", {reboot_sys_fx}, "NO", nullptr));
+			window->pushGui(new GuiMsgBox(
+				window, "REALLY RESTART?", "YES",
+				{reboot_sys_fx},
+				"NO", nullptr,
+				"", nullptr,
+				ViewController::get()->getState().getSystem()->getTheme()
+			));
 		});
 	} else {
 		row.makeAcceptInputHandler(reboot_sys_fx);
@@ -589,7 +612,13 @@ void GuiMenu::openQuitMenu()
 	row.elements.clear();
 	if (confirm_quit) {
 		row.makeAcceptInputHandler([window] {
-			window->pushGui(new GuiMsgBox(window, "REALLY SHUTDOWN?", "YES", shutdown_sys_fx, "NO", nullptr));
+			window->pushGui(new GuiMsgBox(
+				window, "REALLY SHUTDOWN?", "YES",
+				shutdown_sys_fx,
+				"NO", nullptr,
+				"", nullptr,
+				ViewController::get()->getState().getSystem()->getTheme()
+			));
 		});
 	} else {
 		row.makeAcceptInputHandler(shutdown_sys_fx);

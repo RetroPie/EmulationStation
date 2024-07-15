@@ -272,6 +272,10 @@ The following "tags" are replaced by ES in launch commands:
 
 `%ROM_RAW%`	- Replaced with the unescaped, absolute path to the selected ROM.  If your emulator is picky about paths, you might want to use this instead of %ROM%, but enclosed in quotes.
 
+`%ROM_DIR%`	- Replaced with the dirname (except "/base.ext") of the selected ROM. Use this when you need to chdir to the directory where the ROM.
+
+`%ES_CFG%`	- Replaced with the directory path of the EmulationStation configuration file contains (i.e. your .emulationstation directory). If .emulationstation is symlink, the link will resolved.
+
 See [SYSTEMS.md](SYSTEMS.md) for some live examples in EmulationStation.
 
 gamelist.xml

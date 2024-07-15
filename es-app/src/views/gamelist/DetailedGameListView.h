@@ -26,6 +26,8 @@ private:
 	void initMDLabels();
 	void initMDValues();
 
+	FileData* mFile;
+
 	ImageComponent mThumbnail;
 	ImageComponent mMarquee;
 	ImageComponent mImage;

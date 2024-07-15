@@ -215,12 +215,19 @@ void DetailedGameListView::updateInfoPanel()
 	FileData* file = (mList.size() == 0 || mList.isScrolling()) ? NULL : mList.getSelected();
 
 	bool fadingOut;
-	if(file == NULL)
+	if(mFile == file)
+	{
+		// Info is already on the panel, don't waste time reloading
+		return;
+	}
+	else if(file == NULL)
 	{
 		//mImage.setImage("");
 		//mDescription.setText("");
 		fadingOut = true;
-	}else{
+	}
+	else
+	{
 		mThumbnail.setImage(file->getThumbnailPath());
 		mMarquee.setImage(file->getMarqueePath());
 		mImage.setImage(file->getImagePath());
@@ -243,6 +250,8 @@ void DetailedGameListView::updateInfoPanel()
 
 		fadingOut = false;
 	}
+
+	mFile = file;
 
 	std::vector<GuiComponent*> comps = getMDValues();
 	comps.push_back(&mThumbnail);

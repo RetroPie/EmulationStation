@@ -249,7 +249,12 @@ void VideoGameListView::updateInfoPanel()
 	FileData* file = (mList.size() == 0 || mList.isScrolling()) ? NULL : mList.getSelected();
 
 	bool fadingOut;
-	if(file == NULL)
+	if(mFile == file)
+	{
+		// Info is already on the panel, don't waste time reloading
+		return;
+	}
+	else if(file == NULL)
 	{
 		mVideo->setVideo("");
 		mVideo->setImage("");
@@ -257,8 +262,9 @@ void VideoGameListView::updateInfoPanel()
 		//mMarquee.setImage("");
 		//mDescription.setText("");
 		fadingOut = true;
-
-	}else{
+	}
+	else
+	{
 		if (!mVideo->setVideo(file->getVideoPath()))
 		{
 			mVideo->setDefaultVideo();
@@ -289,6 +295,8 @@ void VideoGameListView::updateInfoPanel()
 
 		fadingOut = false;
 	}
+
+	mFile = file;
 
 	std::vector<GuiComponent*> comps = getMDValues();
 	comps.push_back(&mThumbnail);

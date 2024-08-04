@@ -280,10 +280,12 @@ void FileData::launchGame(Window* window)
 {
 	LOG(LogInfo) << "Attempting to launch game...";
 
+#ifndef _WIN32
 	AudioManager::getInstance()->deinit();
 	VolumeControl::getInstance()->deinit();
 	InputManager::getInstance()->deinit();
 	window->deinit();
+#endif
 
 	std::string command = mEnvData->mLaunchCommand;
 
@@ -299,7 +301,7 @@ void FileData::launchGame(Window* window)
 	Scripting::fireEvent("game-start", rom, basename, name);
 
 	LOG(LogInfo) << "	" << command;
-	int exitCode = runSystemCommand(command);
+	int exitCode = launchGameCommand(command);
 
 	if(exitCode != 0)
 	{
@@ -308,9 +310,11 @@ void FileData::launchGame(Window* window)
 
 	Scripting::fireEvent("game-end");
 
+#ifndef _WIN32
 	window->init();
 	InputManager::getInstance()->init();
 	VolumeControl::getInstance()->init();
+#endif
 	window->normalizeNextUpdate();
 
 	//update number of times the game has been launched

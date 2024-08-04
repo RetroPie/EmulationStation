@@ -522,6 +522,7 @@ void GuiMenu::openQuitMenu()
 	ComponentListRow row;
 	if (UIModeController::getInstance()->isUIModeFull())
 	{
+#ifndef _WIN32
 		auto static restart_es_fx = []() {
 			Scripting::fireEvent("quit");
 			if (quitES(QuitMode::RESTART)) {
@@ -538,6 +539,7 @@ void GuiMenu::openQuitMenu()
 		}
 		row.addElement(std::make_shared<TextComponent>(window, "RESTART EMULATIONSTATION", Font::get(FONT_SIZE_MEDIUM), 0x777777FF), true);
 		s->addRow(row);
+#endif
 
 		if(Settings::getInstance()->getBool("ShowExit"))
 		{

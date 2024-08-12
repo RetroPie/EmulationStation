@@ -3,6 +3,10 @@
 #include "utils/FileSystemUtil.h"
 #include <fstream>
 
+#ifndef APPDATANAME
+#define APPDATANAME "EmulationStation"
+#endif
+
 auto array_deleter = [](unsigned char* p) { delete[] p; };
 auto nop_deleter = [](unsigned char* /*p*/) { };
 
@@ -27,6 +31,20 @@ std::string ResourceManager::getResourcePath(const std::string& path) const
 	{
 		std::string test;
 
+		// check in standard AppData locations
+#if defined(__linux__)
+		test = Utils::FileSystem::getHomePath() + "/.local/share/" + APPDATANAME + "/resources/" + &path[2];
+		if (Utils::FileSystem::exists(test))
+			return test;
+
+		test = std::string("/usr/local/share/") + APPDATANAME + "/resources/" + &path[2];
+		if (Utils::FileSystem::exists(test))
+			return test;
+
+		test = std::string("/usr/share/") + APPDATANAME + "/resources/" + &path[2];
+		if (Utils::FileSystem::exists(test))
+			return test;
+#endif
 		// check in homepath
 		test = Utils::FileSystem::getHomePath() + "/.emulationstation/resources/" + &path[2];
 		if(Utils::FileSystem::exists(test))

@@ -5,7 +5,7 @@
 #include "SystemData.h"
 #include <iostream>
 #include <signal.h>
-#if defined(__linux__)
+#if defined(__linux__) || defined(__FreeBSD__)
 #include <unistd.h>
 #elif defined(WIN32)
 #include <Windows.h>

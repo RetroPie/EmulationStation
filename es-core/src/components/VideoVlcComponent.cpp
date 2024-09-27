@@ -7,7 +7,6 @@
 #include "Settings.h"
 #ifdef WIN32
 #include <basetsd.h>
-#include <codecvt>
 typedef SSIZE_T ssize_t;
 #else
 #include <unistd.h>

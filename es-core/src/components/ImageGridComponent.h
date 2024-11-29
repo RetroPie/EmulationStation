@@ -86,6 +86,7 @@ private:
 	bool mLastRowPartial;
 	Vector2f mAutoLayout;
 	float mAutoLayoutZoom;
+	int mLastScrollTier;
 
 	Vector4f mPadding;
 	Vector2f mMargin;
@@ -119,6 +120,7 @@ ImageGridComponent<T>::ImageGridComponent(Window* window) : IList<ImageGridData,
 	mAutoLayout = Vector2f::Zero();
 	mAutoLayoutZoom = 1.0;
 
+	mLastScrollTier = 0;
 	mStartPosition = 0;
 
 	mEntriesDirty = true;
@@ -580,19 +582,24 @@ void ImageGridComponent<T>::updateTiles(bool allowAnimation, bool updateSelected
 	if (!mTiles.size())
 		return;
 
-	// Stop updating the tiles at highest scroll speed
 	if (mScrollTier == 3)
 	{
-		for (int ti = 0; ti < (int)mTiles.size(); ti++)
+		// Stop updating the tiles at highest scroll speed
+		if (mLastScrollTier != 3)
 		{
-			std::shared_ptr<GridTileComponent> tile = mTiles.at(ti);
+			for (int ti = 0; ti < (int) mTiles.size(); ti++)
+			{
+				std::shared_ptr<GridTileComponent> tile = mTiles.at(ti);
 
-			tile->setSelected(false);
-			tile->setImage(mDefaultGameTexture);
-			tile->setVisible(false);
+				tile->setSelected(false);
+				tile->setImage(mDefaultGameTexture);
+				tile->setVisible(false);
+			}
 		}
+		mLastScrollTier = mScrollTier;
 		return;
 	}
+	mLastScrollTier = mScrollTier;
 
 	// Temporary store previous textures so they can't be unloaded
 	std::vector<std::shared_ptr<TextureResource>> previousTextures;

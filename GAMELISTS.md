@@ -75,7 +75,8 @@ Things to be Aware Of
 
 * If a value matches the default for a particular piece of metadata, ES will not write it to the gamelist.xml (for example, if `genre` isn't specified, ES won't write an empty genre tag; if `players` is 1, ES won't write a `players` tag).
 
-* A `game` can actually point to a folder/directory if the the folder has a matching extension.
+* A `game` can actually point to a folder/directory if the the folder has a matching extension. It shows up as a game in ES.
+When launch this, if there is a file with the same name as the folder in that folder, that file will be passed to the command as `%ROM%`. Otherwise, just the directory path is passed.
 
 * `folder` metadata will only be used if a game is found inside of that folder.
 

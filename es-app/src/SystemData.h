@@ -20,6 +20,7 @@ struct SystemEnvironmentData
 {
 	std::string mStartPath;
 	std::vector<std::string> mSearchExtensions;
+	std::vector<std::string> mFilesToIgnore;
 	std::string mLaunchCommand;
 	std::vector<PlatformIds::PlatformId> mPlatformIds;
 };
@@ -35,6 +36,7 @@ public:
 	inline const std::string& getFullName() const { return mFullName; }
 	inline const std::string& getStartPath() const { return mEnvData->mStartPath; }
 	inline const std::vector<std::string>& getExtensions() const { return mEnvData->mSearchExtensions; }
+	inline const std::vector<std::string>& getFilesToIgnore() const { return mEnvData->mFilesToIgnore; }
 	inline const std::string& getThemeFolder() const { return mThemeFolder; }
 	inline SystemEnvironmentData* getSystemEnvData() const { return mEnvData; }
 	inline const std::vector<PlatformIds::PlatformId>& getPlatformIds() const { return mEnvData->mPlatformIds; }

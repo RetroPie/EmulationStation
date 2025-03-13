@@ -76,6 +76,7 @@ Font::Font(int size, const std::string& path) : mSize(size), mPath(path)
 {
 	assert(mSize > 0);
 
+	mTextures.reserve(10);
 	mLoaded = true;
 	mMaxGlyphHeight = 0;
 
@@ -209,6 +210,13 @@ void Font::getTextureForNewGlyph(const Vector2i& glyphSize, FontTexture*& tex_ou
 		// will this one work?
 		if(tex_out->findEmpty(glyphSize, cursor_out))
 			return; // yes
+	}
+
+	if(mTextures.size() >= mTextures.capacity())
+	{
+		LOG(LogError) << "Glyph too many to create a new texture!";
+		tex_out = NULL;
+		return;
 	}
 
 	// current textures are full,
@@ -684,7 +692,7 @@ TextCache* Font::buildTextCache(const std::string& text, Vector2f offset, unsign
 	unsigned int i = 0;
 	for(auto it = vertMap.cbegin(); it != vertMap.cend(); it++)
 	{
-		TextCache::VertexList& vertList = cache->vertexLists.at(i);
+		TextCache::VertexList& vertList = cache->vertexLists.at(i++);
 
 		vertList.textureIdPtr = &it->first->textureId;
 		vertList.verts = it->second;

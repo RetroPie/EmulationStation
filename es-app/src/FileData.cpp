@@ -287,14 +287,20 @@ void FileData::launchGame(Window* window)
 
 	std::string command = mEnvData->mLaunchCommand;
 
-	const std::string rom      = Utils::FileSystem::getEscapedPath(getPath());
-	const std::string basename = Utils::FileSystem::getStem(getPath());
-	const std::string rom_raw  = Utils::FileSystem::getPreferredPath(getPath());
-	const std::string name     = getName();
+	const std::string rom         = Utils::FileSystem::getEscapedPath(getPath());
+	const std::string basename    = Utils::FileSystem::getStem(getPath());
+	const std::string rom_raw     = Utils::FileSystem::getPreferredPath(getPath());
+	const std::string name        = getName();
+	const std::string rom_dir     = Utils::FileSystem::getPreferredPath(Utils::FileSystem::getParent(getPath()));
+	const std::string cfg_dir     = Utils::FileSystem::getPreferredPath(Utils::FileSystem::getCanonicalPath(Utils::FileSystem::getHomePath() + "/.emulationstation"));
+	const std::string install_dir = Utils::FileSystem::getPreferredPath(Utils::FileSystem::getCanonicalPath(Utils::FileSystem::getExePath()));
 
 	command = Utils::String::replace(command, "%ROM%", rom);
 	command = Utils::String::replace(command, "%BASENAME%", basename);
 	command = Utils::String::replace(command, "%ROM_RAW%", rom_raw);
+	command = Utils::String::replace(command, "%ROM_DIR%", rom_dir);
+	command = Utils::String::replace(command, "%CFG_DIR%", cfg_dir);
+	command = Utils::String::replace(command, "%INSTALL_DIR%", install_dir);
 
 	Scripting::fireEvent("game-start", rom, basename, name);
 

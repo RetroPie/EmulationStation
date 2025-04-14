@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 64 64" enable-background="new 0 0 64 64" xml:space="preserve">
+<path id="outline" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round" d="M62,19v13c0,7.2-5.8,13-13,13H15
+	C7.8,45,2,39.2,2,32V19"/>
+<line id="outline2" fill="none" stroke="#FFFFFF" stroke-width="2" x1="1" y1="19" x2="63" y2="19"/>
+<path id="button_lt" fill="#FFFFFF" d="M2,19v13c0,7.2,5.8,13,13,13h34c7.2,0,13-5.8,13-13V19H2z M31.7,40.6H21.1V38l6.2-11.3h-6.1
+	v-3.2h10.2v2.7l-6.2,11.3h6.4v3.1H31.7z M34.5,23.4h4.1v13.9h4.3v3.2h-8.4V23.4z"/>
+</svg>

@@ -29,7 +29,7 @@
 int SDL_USER_CECBUTTONDOWN = -1;
 int SDL_USER_CECBUTTONUP   = -1;
 
-InputManager* InputManager::mInstance = NULL;
+InputManager* InputManager::sInstance = NULL;
 
 InputManager::InputManager() : mKeyboardInputConfig(NULL)
 {
@@ -42,16 +42,16 @@ InputManager::~InputManager()
 
 InputManager* InputManager::getInstance()
 {
-	if(!mInstance)
-		mInstance = new InputManager();
+	if(!sInstance)
+		sInstance = new InputManager();
 
-	return mInstance;
+	return sInstance;
 }
 
 void InputManager::init()
 {
 	if(initialized())
-		deinit();
+		return;
 
 	SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS,
 		Settings::getInstance()->getBool("BackgroundJoystickInput") ? "1" : "0");
@@ -93,6 +93,10 @@ void InputManager::addJoystickByDeviceIndex(int id)
 
 	// add it to our list so we can close it again later
 	SDL_JoystickID joyId = SDL_JoystickInstanceID(joy);
+
+	if(mJoysticks.count(joyId) > 0)
+		return; // already added
+
 	mJoysticks[joyId] = joy;
 
 	char guid[65];

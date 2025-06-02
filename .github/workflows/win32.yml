@@ -27,14 +27,14 @@ jobs:
       # Check-out repository under $GITHUB_WORKSPACE
       # https://github.com/actions/checkout
       - name: Check-out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: true
 
       # Discover location of MSBuild tool and to PATH environment variables
       # https://github.com/microsoft/setup-msbuild
       - name: Locate MSBuild
-        uses: microsoft/setup-msbuild@v1.3.1
+        uses: microsoft/setup-msbuild@v2
 
       # Use NuGet to download the latest libVLC.
       - name: Download libVLC
@@ -98,7 +98,6 @@ jobs:
           -DSDL2_LIBRARY=%SDL2_LIBRARY%
           -DVLC_LIBRARIES=%VLC_LIBRARIES%
           -DVLC_VERSION=%VLC_VERSION%
-          -DCMAKE_EXE_LINKER_FLAGS=/SAFESEH:NO
 
       # Use CMake to build project
       - name: Build EmulationStation
@@ -130,7 +129,7 @@ jobs:
       # Uploads artifacts from workflow
       # https://github.com/actions/upload-artifact
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: EmulationStation
           path: |

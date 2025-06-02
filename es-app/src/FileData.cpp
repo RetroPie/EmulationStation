@@ -283,7 +283,9 @@ void FileData::launchGame(Window* window)
 	AudioManager::getInstance()->deinit();
 	VolumeControl::getInstance()->deinit();
 	InputManager::getInstance()->deinit();
+#ifndef _WIN32
 	window->deinit();
+#endif
 
 	std::string command = mEnvData->mLaunchCommand;
 
@@ -299,7 +301,7 @@ void FileData::launchGame(Window* window)
 	Scripting::fireEvent("game-start", rom, basename, name);
 
 	LOG(LogInfo) << "	" << command;
-	int exitCode = runSystemCommand(command);
+	int exitCode = launchGameCommand(command);
 
 	if(exitCode != 0)
 	{
@@ -308,7 +310,9 @@ void FileData::launchGame(Window* window)
 
 	Scripting::fireEvent("game-end");
 
+#ifndef _WIN32
 	window->init();
+#endif
 	InputManager::getInstance()->init();
 	VolumeControl::getInstance()->init();
 	window->normalizeNextUpdate();

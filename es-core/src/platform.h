@@ -17,7 +17,8 @@ enum QuitMode
 	REBOOT = 3
 };
 
-int runSystemCommand(const std::string& cmd_utf8); // run a utf-8 encoded in the shell (requires wstring conversion on Windows)
+int runSystemCommand(const std::string& cmd_utf8); // run a utf-8 encoded in the shell
+int launchGameCommand(const std::string& cmd_utf8);
 int quitES(QuitMode mode = QuitMode::QUIT);
 void processQuitMode();
 

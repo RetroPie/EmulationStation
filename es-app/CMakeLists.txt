@@ -120,6 +120,7 @@ set(ES_SOURCES
 if(MSVC)
     LIST(APPEND ES_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/EmulationStation.rc
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/EmulationStation.manifest
     )
 endif()
 

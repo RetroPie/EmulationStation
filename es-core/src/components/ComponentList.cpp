@@ -2,7 +2,7 @@
 
 #define TOTAL_HORIZONTAL_PADDING_PX 20
 
-ComponentList::ComponentList(Window* window) : IList<ComponentListRow, void*>(window, LIST_SCROLL_STYLE_SLOW, LIST_NEVER_LOOP)
+ComponentList::ComponentList(Window* window, ListLoopType loop_type) : IList<ComponentListRow, void*>(window, LIST_SCROLL_STYLE_SLOW, loop_type)
 {
 	mSelectorBarOffset = 0;
 	mCameraOffset = 0;

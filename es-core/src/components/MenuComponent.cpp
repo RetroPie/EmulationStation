@@ -1,6 +1,7 @@
 #include "components/MenuComponent.h"
 
 #include "components/ButtonComponent.h"
+#include "Settings.h"
 
 #define BUTTON_GRID_VERT_PADDING 32
 #define BUTTON_GRID_HORIZ_PADDING 10
@@ -13,12 +14,15 @@ MenuComponent::MenuComponent(Window* window, const char* title, const std::share
 	addChild(&mBackground);
 	addChild(&mGrid);
 
-	mBackground.setImagePath(":/frame.png");
+	// Modo claro/oscuro para el fondo del menú
+	bool darkMenu = Settings::getInstance()->getBool("MenuDark");
+	mBackground.setImagePath(darkMenu ? ":/frame_dark.png" : ":/frame.png");
 
 	// set up title
 	mTitle = std::make_shared<TextComponent>(mWindow);
 	mTitle->setHorizontalAlignment(ALIGN_CENTER);
-	mTitle->setColor(0x555555FF);
+	// Título blanco en modo oscuro, gris en modo claro
+	mTitle->setColor(darkMenu ? 0xFFFFFFFF : 0x555555FF);
 	setTitle(title, titleFont);
 	mGrid.setEntry(mTitle, Vector2i(0, 0), false);
 

@@ -30,6 +30,10 @@ public:
 	void setBackgroundColor(unsigned int color);
 	void setRenderBackground(bool render);
 
+	// Stroke / outline del texto
+	void setTextStrokeColor(unsigned int color);
+	void setTextStrokeSize(float size);
+
 	void render(const Transform4x4f& parentTrans) override;
 
 	std::string getValue() const override;
@@ -55,8 +59,10 @@ private:
 
 	unsigned int mColor;
 	unsigned int mBgColor;
+	unsigned int mStrokeColor;
 	unsigned char mColorOpacity;
 	unsigned char mBgColorOpacity;
+	unsigned char mStrokeColorOpacity;
 	bool mRenderBackground;
 
 	bool mUppercase;
@@ -65,6 +71,8 @@ private:
 	Alignment mHorizontalAlignment;
 	Alignment mVerticalAlignment;
 	float mLineSpacing;
+
+	float mStrokeSize;
 };
 
 #endif // ES_CORE_COMPONENTS_TEXT_COMPONENT_H

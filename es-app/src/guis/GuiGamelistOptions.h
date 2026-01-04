@@ -7,6 +7,9 @@
 #include "FileData.h"
 #include "GuiComponent.h"
 
+// 🔹 Ruta correcta
+#include "LocaleESHook.h"
+
 class IGameListView;
 class SystemData;
 

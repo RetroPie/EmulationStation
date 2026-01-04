@@ -6,6 +6,56 @@
 #include "CollectionSystemManager.h"
 #include "Settings.h"
 #include "SystemData.h"
+#include "LocaleES.h"
+
+// NUEVO: soporte de sonidos de navegación
+#include "Sound.h"
+#include "ThemeData.h"
+
+namespace
+{
+	// Busca un ThemeElement de tipo "sound" por nombre, considerando
+	// <feature supported="navigationsounds"> (view="all") y vistas gamelist/system.
+	inline std::shared_ptr<Sound> getNavSound(SystemData* sys, const std::string& name)
+	{
+		if (!sys)
+			return nullptr;
+
+		const std::shared_ptr<ThemeData>& theme = sys->getTheme();
+		if (!theme)
+			return nullptr;
+
+		const ThemeData::ThemeElement* elem = nullptr;
+
+		// 1) Esquema Batocera: <feature supported="navigationsounds"><view name="all">
+		//    <sound name="back">, <sound name="favorite">, <sound name="launch">, etc.
+		elem = theme->getElement("all", name, "sound");
+
+		// 2) Por si el tema lo define en la vista "gamelist"
+		if (!elem && theme->hasView("gamelist"))
+			elem = theme->getElement("gamelist", name, "sound");
+
+		// 3) Fallback: vista "system"
+		if (!elem && theme->hasView("system"))
+			elem = theme->getElement("system", name, "sound");
+
+		if (!elem || !elem->has("path"))
+			return nullptr;
+
+		std::string path = elem->get<std::string>("path");
+		if (path.empty())
+			return nullptr;
+
+		return Sound::get(path);
+	}
+
+	inline void playNavSound(SystemData* sys, const std::string& name)
+	{
+		auto snd = getNavSound(sys, name);
+		if (snd)
+			snd->play();
+	}
+}
 
 BasicGameListView::BasicGameListView(Window* window, FileData* root)
 	: ISimpleGameListView(window, root), mList(window)
@@ -29,7 +79,7 @@ void BasicGameListView::onThemeChanged(const std::shared_ptr<ThemeData>& theme)
 
 void BasicGameListView::onFileChanged(FileData* file, FileChangeType change)
 {
-	if(change == FILE_METADATA_CHANGED)
+	if (change == FILE_METADATA_CHANGED)
 	{
 		// might switch to a detailed view
 		ViewController::get()->reloadGameListView(this);
@@ -45,7 +95,7 @@ void BasicGameListView::populateList(const std::vector<FileData*>& files)
 	mHeaderText.setText(mRoot->getSystem()->getFullName());
 	if (files.size() > 0)
 	{
-		for(auto it = files.cbegin(); it != files.cend(); it++)
+		for (auto it = files.cbegin(); it != files.cend(); it++)
 		{
 			mList.add((*it)->getName(), *it, ((*it)->getType() == FOLDER));
 		}
@@ -67,7 +117,7 @@ void BasicGameListView::setCursor(FileData* cursor, bool refreshListCursorPos)
 		setViewportTop(mList.REFRESH_LIST_CURSOR_POS);
 
 	bool notInList = !mList.setCursor(cursor);
-	if(!refreshListCursorPos && notInList && !cursor->isPlaceHolder())
+	if (!refreshListCursorPos && notInList && !cursor->isPlaceHolder())
 	{
 		populateList(cursor->getParent()->getChildrenListToDisplay());
 		// this extra call is needed iff a system has games organized in folders
@@ -76,11 +126,11 @@ void BasicGameListView::setCursor(FileData* cursor, bool refreshListCursorPos)
 			mList.setCursor(cursor);
 
 		// update our cursor stack in case our cursor just got set to some folder we weren't in before
-		if(mCursorStack.empty() || mCursorStack.top() != cursor->getParent())
+		if (mCursorStack.empty() || mCursorStack.top() != cursor->getParent())
 		{
 			std::stack<FileData*> tmp;
 			FileData* ptr = cursor->getParent();
-			while(ptr && ptr != mRoot)
+			while (ptr && ptr != mRoot)
 			{
 				tmp.push(ptr);
 				ptr = ptr->getParent();
@@ -88,7 +138,7 @@ void BasicGameListView::setCursor(FileData* cursor, bool refreshListCursorPos)
 
 			// flip the stack and put it in mCursorStack
 			mCursorStack = std::stack<FileData*>();
-			while(!tmp.empty())
+			while (!tmp.empty())
 			{
 				mCursorStack.push(tmp.top());
 				tmp.pop();
@@ -102,7 +152,6 @@ void BasicGameListView::setViewportTop(int index)
 	mList.setViewportTop(index);
 }
 
-
 int BasicGameListView::getViewportTop()
 {
 	return mList.getViewportTop();
@@ -110,8 +159,20 @@ int BasicGameListView::getViewportTop()
 
 void BasicGameListView::addPlaceholder()
 {
+	LocaleES& loc = LocaleES::getInstance();
+
+	// Intentamos traducir; si no hay traducción, dejamos el texto por defecto.
+	std::string placeholderName = loc.translate("NO ENTRIES FOUND");
+	if (placeholderName == "NO ENTRIES FOUND")
+		placeholderName = "<No Entries Found>";
+
 	// empty list - add a placeholder
-	FileData* placeholder = new FileData(PLACEHOLDER, "<No Entries Found>", this->mRoot->getSystem()->getSystemEnvData(), this->mRoot->getSystem());
+	FileData* placeholder = new FileData(
+		PLACEHOLDER,
+		placeholderName,
+		this->mRoot->getSystem()->getSystemEnvData(),
+		this->mRoot->getSystem());
+
 	mList.add(placeholder->getName(), placeholder, (placeholder->getType() == PLACEHOLDER));
 }
 
@@ -127,6 +188,10 @@ std::string BasicGameListView::getQuickSystemSelectLeftButton()
 
 void BasicGameListView::launch(FileData* game)
 {
+	// SONIDO DE LAUNCH (Batocera-style)
+	if (game)
+		playNavSound(game->getSystem(), "launch");
+
 	ViewController::get()->launch(game);
 }
 
@@ -191,42 +256,85 @@ void BasicGameListView::remove(FileData *game, bool deleteFile, bool refreshView
 			if ((gamePos + 1) < siblings.size())
 			{
 				setCursor(siblings.at(gamePos + 1));
-			} else if (gamePos > 1) {
+			}
+			else if (gamePos > 1) {
 				setCursor(siblings.at(gamePos - 1));
 			}
 		}
 	}
 	mList.remove(game);
-	if(mList.size() == 0)
+	if (mList.size() == 0)
 	{
 		addPlaceholder();
 	}
 	delete game;                                 // remove before repopulating (removes from parent)
-	if(refreshView)
+	if (refreshView)
 		onFileChanged(parent, FILE_REMOVED);     // update the view, with game removed
 }
 
 std::vector<HelpPrompt> BasicGameListView::getHelpPrompts()
 {
+	LocaleES& loc = LocaleES::getInstance();
+
 	std::vector<HelpPrompt> prompts;
 
-	if(Settings::getInstance()->getBool("QuickSystemSelect"))
-		prompts.push_back(HelpPrompt("left/right", "system"));
-	prompts.push_back(HelpPrompt("up/down", "choose"));
-	prompts.push_back(HelpPrompt("a", "launch"));
-	prompts.push_back(HelpPrompt("b", "back"));
-	if(!UIModeController::getInstance()->isUIModeKid())
-		prompts.push_back(HelpPrompt("select", "options"));
-	if(mRoot->getSystem()->isGameSystem())
-		prompts.push_back(HelpPrompt("x", "random"));
-	if(mRoot->getSystem()->isGameSystem() && !UIModeController::getInstance()->isUIModeKid())
+	if (Settings::getInstance()->getBool("QuickSystemSelect"))
+	{
+		// "SYSTEM" no está en tu .ini aún, pero si no existe saldrá "SYSTEM"
+		prompts.push_back(HelpPrompt("left/right", loc.translate("SYSTEM")));
+	}
+
+	prompts.push_back(HelpPrompt("up/down",   loc.translate("CHOOSE")));
+	prompts.push_back(HelpPrompt("a",         loc.translate("START")));
+	prompts.push_back(HelpPrompt("b",         loc.translate("BACK")));
+
+	if (!UIModeController::getInstance()->isUIModeKid())
+	{
+		// Puedes añadir OPTIONS=OPCIONES al .ini si quieres
+		prompts.push_back(HelpPrompt("select", loc.translate("OPTIONS")));
+	}
+
+	if (mRoot->getSystem()->isGameSystem())
+		prompts.push_back(HelpPrompt("x", loc.translate("RANDOM")));
+
+	if (mRoot->getSystem()->isGameSystem() && !UIModeController::getInstance()->isUIModeKid())
 	{
 		std::string prompt = CollectionSystemManager::get()->getEditingCollection();
 		prompts.push_back(HelpPrompt("y", prompt));
 	}
+
 	return prompts;
 }
 
 void BasicGameListView::onFocusLost() {
 	mList.stopScrolling(true);
+}
+
+// NUEVO: interceptar input para reproducir BACK y FAVORITE
+bool BasicGameListView::input(InputConfig* config, Input input)
+{
+	// Llamamos primero a la lógica base para no romper nada importante
+	if (ISimpleGameListView::input(config, input))
+		return true;
+
+	if (input.value != 0)
+	{
+		SystemData* sys = mRoot ? mRoot->getSystem() : nullptr;
+
+		// BACK (B)
+		if (config->isMappedTo("b", input))
+		{
+			playNavSound(sys, "back");
+			return true; // evento consumido
+		}
+
+		// FAVORITE / EDIT COLLECTION (Y)
+		if (config->isMappedTo("y", input))
+		{
+			playNavSound(sys, "favorite");
+			return true; // evento consumido
+		}
+	}
+
+	return false;
 }

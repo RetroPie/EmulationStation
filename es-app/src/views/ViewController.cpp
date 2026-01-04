@@ -17,6 +17,13 @@
 #include "Settings.h"
 #include "SystemData.h"
 #include "Window.h"
+#include "Sound.h"
+
+// ✅ Popup concreto (implementa Window::InfoPopup)
+#include "guis/GuiInfoPopup.h"
+
+// 🔊 NUEVO: música de fondo ES-X
+#include "audio/BackgroundMusicManager.h"
 
 ViewController* ViewController::sInstance = NULL;
 
@@ -94,6 +101,15 @@ void ViewController::goToSystemView(SystemData* system)
 	if (mCurrentView)
 	{
 		mCurrentView->onHide();
+	}
+
+	// 🔊 SONIDO DE BACK:
+	// Solo reproducir si venimos de una gamelist (volver al carrusel)
+	if (mState.viewing == GAME_LIST)
+	{
+		auto backSound = Sound::getFromTheme(system->getTheme(), "system", "backSound");
+		if (backSound)
+			backSound->play();
 	}
 
 	mState.viewing = SYSTEM_SELECT;
@@ -274,6 +290,9 @@ void ViewController::launch(FileData* game, Vector3f center)
 	mWindow->stopInfoPopup(); // make sure we disable any existing info popup
 	mLockInput = true;
 
+	// 🔊 NUEVO: avisar que se lanza un juego (detener música de fondo)
+	BackgroundMusicManager::getInstance().onGameLaunched();
+
 	std::string transition_style = Settings::getInstance()->getString("TransitionStyle");
 	if(transition_style == "fade")
 	{
@@ -284,6 +303,10 @@ void ViewController::launch(FileData* game, Vector3f center)
 		setAnimation(new LambdaAnimation(fadeFunc, 800), 0, [this, game, fadeFunc]
 		{
 			game->launchGame(mWindow);
+
+			// 🔊 NUEVO: al volver del juego → reanudar música si corresponde
+			BackgroundMusicManager::getInstance().onGameEnded();
+
 			setAnimation(new LambdaAnimation(fadeFunc, 800), 0, [this, game] { mLockInput = false; }, true);
 			this->onFileChanged(game, FILE_METADATA_CHANGED);
 			if (mCurrentView) {
@@ -296,6 +319,10 @@ void ViewController::launch(FileData* game, Vector3f center)
 		setAnimation(new LaunchAnimation(mCamera, mFadeOpacity, center, 1500), 0, [this, origCamera, center, game]
 		{
 			game->launchGame(mWindow);
+
+			// 🔊 NUEVO: al volver del juego
+			BackgroundMusicManager::getInstance().onGameEnded();
+
 			mCamera = origCamera;
 			setAnimation(new LaunchAnimation(mCamera, mFadeOpacity, center, 600), 0, [this, game] { mLockInput = false; }, true);
 			this->onFileChanged(game, FILE_METADATA_CHANGED);
@@ -308,6 +335,10 @@ void ViewController::launch(FileData* game, Vector3f center)
 		setAnimation(new LaunchAnimation(mCamera, mFadeOpacity, center, 10), 0, [this, origCamera, center, game]
 		{
 			game->launchGame(mWindow);
+
+			// 🔊 NUEVO: al volver del juego
+			BackgroundMusicManager::getInstance().onGameEnded();
+
 			mCamera = origCamera;
 			setAnimation(new LaunchAnimation(mCamera, mFadeOpacity, center, 10), 0, [this, game] { mLockInput = false; }, true);
 			this->onFileChanged(game, FILE_METADATA_CHANGED);
@@ -424,7 +455,6 @@ std::shared_ptr<SystemView> ViewController::getSystemListView()
 	return mSystemListView;
 }
 
-
 bool ViewController::input(InputConfig* config, Input input)
 {
 	if(mLockInput)
@@ -454,6 +484,20 @@ void ViewController::update(int deltaTime)
 	if(mCurrentView)
 	{
 		mCurrentView->update(deltaTime);
+	}
+
+	// ==========================
+	// 🎵 Popup “Now playing”
+	// ==========================
+	auto& bgm = BackgroundMusicManager::getInstance();
+	if (bgm.songNameChanged())
+	{
+		mWindow->stopInfoPopup();
+
+		// ✅ GuiInfoPopup implementa Window::InfoPopup en tu fork
+		mWindow->setInfoPopup(new GuiInfoPopup(mWindow, "♪♪" + bgm.getCurrentSongDisplayName(), 4000));
+
+		bgm.resetSongNameChangedFlag();
 	}
 
 	updateSelf(deltaTime);
@@ -552,7 +596,6 @@ void ViewController::reloadGameListView(IGameListView* view, bool reloadTheme)
 	// Redisplay the current view
 	if (mCurrentView)
 		mCurrentView->onShow();
-
 }
 
 void ViewController::reloadAll(bool themeChanged)

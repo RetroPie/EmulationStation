@@ -25,13 +25,16 @@ public:
 	virtual std::vector<HelpPrompt> getHelpPrompts() override;
 	virtual void launch(FileData* game) override;
 
-        void onFocusLost() override;
+	// Necesario porque en el .cpp ya existe BasicGameListView::input(...)
+	virtual bool input(InputConfig* config, Input input) override;
+
+	void onFocusLost() override;
 
 protected:
 	virtual std::string getQuickSystemSelectRightButton() override;
 	virtual std::string getQuickSystemSelectLeftButton() override;
 	virtual void populateList(const std::vector<FileData*>& files) override;
-	virtual void remove(FileData* game, bool deleteFile, bool refreshView=true) override;
+	virtual void remove(FileData* game, bool deleteFile, bool refreshView = true) override;
 	virtual void addPlaceholder();
 
 	TextListComponent<FileData*> mList;

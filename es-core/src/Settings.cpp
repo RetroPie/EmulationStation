@@ -1,3 +1,5 @@
+// ========== Settings.cpp (COMPLETO, VERSION ES-X CON EnableBGM) ==========
+
 #include "Settings.h"
 
 #include "utils/FileSystemUtil.h"
@@ -10,8 +12,7 @@
 
 Settings* Settings::sInstance = NULL;
 
-// these values are NOT saved to es_settings.xml
-// since they're set through command-line arguments, and not the in-program settings menu
+// Valores que NO se guardan en es_settings.cfg
 std::vector<const char*> settings_dont_save {
 	"Debug",
 	"DebugGrid",
@@ -47,7 +48,6 @@ Settings* Settings::getInstance()
 {
 	if(sInstance == NULL)
 		sInstance = new Settings();
-
 	return sInstance;
 }
 
@@ -79,6 +79,9 @@ void Settings::setDefaults()
 	mBoolMap["QuickSystemSelect"] = true;
 	mBoolMap["MoveCarousel"] = true;
 
+	// Modo oscuro ES-X
+	mBoolMap["MenuDark"] = false;
+
 	mBoolMap["ThreadedLoading"] = false;
 
 	mBoolMap["Debug"] = false;
@@ -86,16 +89,20 @@ void Settings::setDefaults()
 	mBoolMap["DebugText"] = false;
 	mBoolMap["DebugImage"] = false;
 
+	// 🆕 NUEVO: Música de fondo
+	mBoolMap["EnableBGM"] = true;
+
 	mIntMap["ScreenSaverTime"] = 5 * Settings::ONE_MINUTE_IN_MS;
 	mIntMap["SystemSleepTime"] = 0 * Settings::ONE_MINUTE_IN_MS;
 	mBoolMap["SystemSleepTimeHintDisplayed"] = false;
 	mIntMap["ScraperResizeWidth"] = 400;
 	mIntMap["ScraperResizeHeight"] = 0;
-	#ifdef _RPI_
-		mIntMap["MaxVRAM"] = 80;
-	#else
-		mIntMap["MaxVRAM"] = 100;
-	#endif
+
+#ifdef _RPI_
+	mIntMap["MaxVRAM"] = 80;
+#else
+	mIntMap["MaxVRAM"] = 100;
+#endif
 
 	mStringMap["TransitionStyle"] = "fade";
 	mStringMap["ThemeSet"] = "";
@@ -118,35 +125,30 @@ void Settings::setDefaults()
 	mStringMap["SlideshowScreenSaverVideoFilter"] = ".mp4,.avi";
 	mBoolMap["SlideshowScreenSaverRecurse"] = false;
 
-	// This setting only applies to raspberry pi but set it for all platforms so
-	// we don't get a warning if we encounter it on a different platform
 	mBoolMap["VideoOmxPlayer"] = false;
-	#ifdef _OMX_
-		// we're defaulting to OMX Player for full screen video on the Pi
-		mBoolMap["ScreenSaverOmxPlayer"] = true;
-		// use OMX Player defaults
-		mStringMap["SubtitleFont"] = "/usr/share/fonts/truetype/freefont/FreeSans.ttf";
-		mStringMap["SubtitleItalicFont"] = "/usr/share/fonts/truetype/freefont/FreeSansOblique.ttf";
-		mIntMap["SubtitleSize"] = 55;
-		mStringMap["SubtitleAlignment"] = "left";
-	#else
-		mBoolMap["ScreenSaverOmxPlayer"] = false;
-	#endif
+#ifdef _OMX_
+	mBoolMap["ScreenSaverOmxPlayer"] = true;
+	mStringMap["SubtitleFont"] = "/usr/share/fonts/truetype/freefont/FreeSans.ttf";
+	mStringMap["SubtitleItalicFont"] = "/usr/share/fonts/truetype/freefont/FreeSansOblique.ttf";
+	mIntMap["SubtitleSize"] = 55;
+	mStringMap["SubtitleAlignment"] = "left";
+#else
+	mBoolMap["ScreenSaverOmxPlayer"] = false;
+#endif
 
 	mIntMap["ScreenSaverSwapVideoTimeout"] = 30000;
 
 	mBoolMap["VideoAudio"] = true;
 	mBoolMap["ScreenSaverVideoMute"] = false;
 	mStringMap["VlcScreenSaverResolution"] = "original";
-	// Audio out device for Video playback using OMX player.
 	mStringMap["OMXAudioDev"] = "both";
-	mIntMap["RandomCollectionMaxGames"] = 0; // 0 == no limit
-	std::map<std::string, int> m1;
-	mMapIntMap["RandomCollectionSystemsAuto"] = m1;
-	std::map<std::string, int> m2;
-	mMapIntMap["RandomCollectionSystemsCustom"] = m2;
-	std::map<std::string, int> m3;
-	mMapIntMap["RandomCollectionSystems"] = m3;
+
+	mIntMap["RandomCollectionMaxGames"] = 0;
+	std::map<std::string,int> empty;
+	mMapIntMap["RandomCollectionSystemsAuto"] = empty;
+	mMapIntMap["RandomCollectionSystemsCustom"] = empty;
+	mMapIntMap["RandomCollectionSystems"] = empty;
+
 	mStringMap["RandomCollectionExclusionCollection"] = "";
 	mStringMap["CollectionSystemsAuto"] = "";
 	mStringMap["CollectionSystemsCustom"] = "";
@@ -158,12 +160,11 @@ void Settings::setDefaults()
 
 	mBoolMap["LocalArt"] = false;
 
-	// Audio out device for volume control
-	#ifdef _RPI_
-		mStringMap["AudioDevice"] = "HDMI";
-	#else
-		mStringMap["AudioDevice"] = "Master";
-	#endif
+#ifdef _RPI_
+	mStringMap["AudioDevice"] = "HDMI";
+#else
+	mStringMap["AudioDevice"] = "Master";
+#endif
 
 	mStringMap["AudioCard"] = "default";
 	mStringMap["UIMode"] = "Full";
@@ -172,21 +173,22 @@ void Settings::setDefaults()
 	mBoolMap["ForceKid"] = false;
 	mBoolMap["ForceDisableFilters"] = false;
 
-	mIntMap["WindowWidth"]   = 0;
-	mIntMap["WindowHeight"]  = 0;
-	mIntMap["ScreenWidth"]   = 0;
-	mIntMap["ScreenHeight"]  = 0;
+	mIntMap["WindowWidth"] = 0;
+	mIntMap["WindowHeight"] = 0;
+	mIntMap["ScreenWidth"] = 0;
+	mIntMap["ScreenHeight"] = 0;
 	mIntMap["ScreenOffsetX"] = 0;
 	mIntMap["ScreenOffsetY"] = 0;
-	mIntMap["ScreenRotate"]  = 0;
+	mIntMap["ScreenRotate"] = 0;
 	mIntMap["MonitorID"] = 0;
 
 	mBoolMap["UseFullscreenPaging"] = false;
-
 	mBoolMap["IgnoreLeadingArticles"] = false;
-	//No spaces!  Order is important!
-	//"The A Squad" given [a,an,the] will sort as "A Squad", but given [the,a,an] will sort as "Squad"
+
 	mStringMap["LeadingArticles"] = "a,an,the";
+
+	// idioma por defecto ES-X
+	mStringMap["Language"] = "en";
 }
 
 template <typename K, typename V>
@@ -194,7 +196,6 @@ void saveMap(pugi::xml_document& doc, std::map<K, V>& map, const char* type)
 {
 	for(auto iter = map.cbegin(); iter != map.cend(); iter++)
 	{
-		// key is on the "don't save" list, so don't save it
 		if(std::find(settings_dont_save.cbegin(), settings_dont_save.cend(), iter->first) != settings_dont_save.cend())
 			continue;
 
@@ -211,11 +212,10 @@ void Settings::saveFile()
 
 	pugi::xml_document doc;
 
-	saveMap<std::string, bool>(doc, mBoolMap, "bool");
-	saveMap<std::string, int>(doc, mIntMap, "int");
-	saveMap<std::string, float>(doc, mFloatMap, "float");
+	saveMap<std::string,bool>(doc, mBoolMap, "bool");
+	saveMap<std::string,int>(doc, mIntMap, "int");
+	saveMap<std::string,float>(doc, mFloatMap, "float");
 
-	//saveMap<std::string, std::string>(doc, mStringMap, "string");
 	for(auto iter = mStringMap.cbegin(); iter != mStringMap.cend(); iter++)
 	{
 		pugi::xml_node node = doc.append_child("string");
@@ -229,7 +229,7 @@ void Settings::saveFile()
 		node.append_attribute("name").set_value(m.first.c_str());
 		std::string datatype = "int";
 		node.append_attribute("type").set_value(datatype.c_str());
-		for(auto &intMap : m.second) // intMap is a <string, int> map
+		for(auto &intMap : m.second)
 		{
 			pugi::xml_node entry = node.append_child(datatype.c_str());
 			entry.append_attribute("name").set_value(intMap.first.c_str());
@@ -271,46 +271,44 @@ void Settings::loadFile()
 	{
 		std::string mapName = node.attribute("name").as_string();
 		std::string mapType = node.attribute("type").as_string();
-		if (mapType == "int") {
-			// only supporting int value maps currently
-			std::map<std::string, int> _map;
+		if(mapType == "int")
+		{
+			std::map<std::string,int> _map;
 			for(pugi::xml_node entry : node.children(mapType.c_str()))
-			{
 				_map[entry.attribute("name").as_string()] = entry.attribute("value").as_int();
-			}
 			setMap(mapName, _map);
-		} else {
-			LOG(LogWarning) << "Map: '" << mapName << "'. Unsupported data type '"<< mapType <<"'. Value ignored!";
+		}
+		else
+		{
+			LOG(LogWarning) << "Map '" << mapName << "' unsupported type '" << mapType << "'";
 		}
 	}
 
 	processBackwardCompatibility();
 }
 
-
-void Settings::setMap(const std::string& key, const std::map<std::string, int>& map)
+void Settings::setMap(const std::string& key, const std::map<std::string,int>& map)
 {
 	mMapIntMap[key] = map;
 }
 
-const std::map<std::string, int> Settings::getMap(const std::string& key)
+const std::map<std::string,int> Settings::getMap(const std::string& key)
 {
 	if(mMapIntMap.find(key) == mMapIntMap.cend())
 	{
 		LOG(LogError) << "Tried to use undefined setting " << key << "!";
-		std::map<std::string, int> empty;
+		std::map<std::string,int> empty;
 		return empty;
-
 	}
 	return mMapIntMap[key];
 }
 
-
 template<typename Map>
 void Settings::renameSetting(Map& map, std::string&& oldName, std::string&& newName)
 {
-	typename Map::const_iterator it = map.find(oldName);
-	if (it != map.end()) {
+	auto it = map.find(oldName);
+	if(it != map.end())
+	{
 		map[newName] = it->second;
 		map.erase(it);
 	}
@@ -318,24 +316,30 @@ void Settings::renameSetting(Map& map, std::string&& oldName, std::string&& newN
 
 void Settings::processBackwardCompatibility()
 {
-	{	// SaveGamelistsOnExit -> SaveGamelistsMode
-		std::map<std::string, bool>::const_iterator it = mBoolMap.find("SaveGamelistsOnExit");
-		if (it != mBoolMap.end()) {
+	{
+		auto it = mBoolMap.find("SaveGamelistsOnExit");
+		if(it != mBoolMap.end())
+		{
 			mStringMap["SaveGamelistsMode"] = it->second ? "on exit" : "never";
 			mBoolMap.erase(it);
 		}
 	}
 
-	{ // ScreenSaverSlideShow Image -> Media
-		renameSetting<std::map<std::string, int>>(mIntMap, std::string("ScreenSaverSwapImageTimeout"), std::string("ScreenSaverSwapMediaTimeout"));
-		renameSetting<std::map<std::string, bool>>(mBoolMap, std::string("SlideshowScreenSaverCustomImageSource"), std::string("SlideshowScreenSaverCustomMediaSource"));
-		renameSetting<std::map<std::string, std::string>>(mStringMap, std::string("SlideshowScreenSaverImageDir"), std::string("SlideshowScreenSaverMediaDir"));
-	}
+	renameSetting<std::map<std::string,int>>(mIntMap,
+		std::string("ScreenSaverSwapImageTimeout"),
+		std::string("ScreenSaverSwapMediaTimeout"));
+
+	renameSetting<std::map<std::string,bool>>(mBoolMap,
+		std::string("SlideshowScreenSaverCustomImageSource"),
+		std::string("SlideshowScreenSaverCustomMediaSource"));
+
+	renameSetting<std::map<std::string,std::string>>(mStringMap,
+		std::string("SlideshowScreenSaverImageDir"),
+		std::string("SlideshowScreenSaverMediaDir"));
 }
 
-
-//Print a warning message if the setting we're trying to get doesn't already exist in the map, then return the value in the map.
-#define SETTINGS_GETSET(type, mapName, getMethodName, setMethodName) type Settings::getMethodName(const std::string& name) \
+#define SETTINGS_GETSET(type, mapName, getMethodName, setMethodName) \
+type Settings::getMethodName(const std::string& name) \
 { \
 	if(mapName.find(name) == mapName.cend()) \
 	{ \
@@ -352,3 +356,4 @@ SETTINGS_GETSET(bool, mBoolMap, getBool, setBool);
 SETTINGS_GETSET(int, mIntMap, getInt, setInt);
 SETTINGS_GETSET(float, mFloatMap, getFloat, setFloat);
 SETTINGS_GETSET(const std::string&, mStringMap, getString, setString);
+

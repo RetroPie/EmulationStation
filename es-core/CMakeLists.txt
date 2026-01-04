@@ -104,26 +104,27 @@ set(CORE_SOURCES
 	${CMAKE_CURRENT_SOURCE_DIR}/src/animations/AnimationController.cpp
 
 	# GuiComponents
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/AnimatedImageComponent.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/BusyComponent.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/ButtonComponent.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/ComponentGrid.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/ComponentList.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/DateTimeComponent.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/DateTimeEditComponent.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/HelpComponent.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/GridTileComponent.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/ImageComponent.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/MenuComponent.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/NinePatchComponent.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/ScrollableContainer.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/SliderComponent.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/SwitchComponent.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/TextComponent.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/TextEditComponent.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/VideoComponent.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/VideoPlayerComponent.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/components/VideoVlcComponent.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/AnimatedImageComponent.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/BusyComponent.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/ButtonComponent.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/ComponentGrid.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/ComponentList.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/DateTimeComponent.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/DateTimeEditComponent.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/HelpComponent.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/GridTileComponent.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/ImageComponent.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/MenuComponent.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/NinePatchComponent.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/ScrollableContainer.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/SliderComponent.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/SwitchComponent.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/TextComponent.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/MarqueeTextComponent.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/TextEditComponent.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/VideoComponent.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/VideoPlayerComponent.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/components/VideoVlcComponent.cpp
 
 	# Guis
 	${CMAKE_CURRENT_SOURCE_DIR}/src/guis/GuiDetectDevice.cpp
@@ -162,5 +163,8 @@ set(CORE_SOURCES
 )
 
 include_directories(${COMMON_INCLUDE_DIRS})
+# ⬇⬇⬇ NUEVA LÍNEA - para poder usar LocaleES.h desde el core
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../es-app/src)
+
 add_library(es-core STATIC ${CORE_SOURCES} ${CORE_HEADERS})
 target_link_libraries(es-core ${COMMON_LIBRARIES})

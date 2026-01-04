@@ -3,6 +3,7 @@
 #include "utils/StringUtil.h"
 #include "Log.h"
 #include "Settings.h"
+#include "../LocaleESHook.h"   // <-- IMPORTANTE: hook de traducción
 
 #include <ctime>
 
@@ -49,34 +50,51 @@ void DateTimeComponent::onTextChanged()
 
 std::string DateTimeComponent::getDisplayString() const
 {
-	if(std::difftime(mTime.getTime(), Utils::Time::BLANK_DATE) == 0.0) {
+	if (std::difftime(mTime.getTime(), Utils::Time::BLANK_DATE) == 0.0)
 		return "";
-	}
 
-	if (mDisplayRelative) {
-		//relative time
-		if(mTime.getTime() == Utils::Time::NOT_A_DATE_TIME)
-			return "never";
+	// Modo relativo (ej.: "123 días atrás")
+	if (mDisplayRelative)
+	{
+		if (mTime.getTime() == Utils::Time::NOT_A_DATE_TIME)
+			return es_translate("NEVER");
 
 		Utils::Time::DateTime now(Utils::Time::now());
 		Utils::Time::Duration dur(now.getTime() - mTime.getTime());
 
 		char buf[64];
 
-		if(dur.getDays() > 0)
-			sprintf(buf, "%d day%s ago", dur.getDays(), (dur.getDays() > 1) ? "s" : "");
-		else if(dur.getHours() > 0)
-			sprintf(buf, "%d hour%s ago", dur.getHours(), (dur.getHours() > 1) ? "s" : "");
-		else if(dur.getMinutes() > 0)
-			sprintf(buf, "%d minute%s ago", dur.getMinutes(), (dur.getMinutes() > 1) ? "s" : "");
+		if (dur.getDays() > 0)
+		{
+			snprintf(buf, sizeof(buf), "%d %s",
+				dur.getDays(),
+				es_translate("DAYS AGO").c_str());
+		}
+		else if (dur.getHours() > 0)
+		{
+			snprintf(buf, sizeof(buf), "%d %s",
+				dur.getHours(),
+				es_translate("HOURS AGO").c_str());
+		}
+		else if (dur.getMinutes() > 0)
+		{
+			snprintf(buf, sizeof(buf), "%d %s",
+				dur.getMinutes(),
+				es_translate("MINUTES AGO").c_str());
+		}
 		else
-			sprintf(buf, "%d second%s ago", dur.getSeconds(), (dur.getSeconds() > 1) ? "s" : "");
+		{
+			snprintf(buf, sizeof(buf), "%d %s",
+				dur.getSeconds(),
+				es_translate("SECONDS AGO").c_str());
+		}
 
 		return std::string(buf);
 	}
 
-	if(mTime.getTime() == Utils::Time::NOT_A_DATE_TIME)
-		return "unknown";
+	// Modo fecha normal
+	if (mTime.getTime() == Utils::Time::NOT_A_DATE_TIME)
+		return es_translate("UNKNOWN");
 
 	return Utils::Time::timeToString(mTime.getTime(), mFormat);
 }
@@ -94,13 +112,13 @@ void DateTimeComponent::applyTheme(const std::shared_ptr<ThemeData>& theme, cons
 	using namespace ThemeFlags;
 
 	const ThemeData::ThemeElement* elem = theme->getElement(view, element, "datetime");
-	if(!elem)
+	if (!elem)
 		return;
 
-	if(elem->has("displayRelative"))
+	if (elem->has("displayRelative"))
 		setDisplayRelative(elem->get<bool>("displayRelative"));
 
-	if(elem->has("format"))
+	if (elem->has("format"))
 		setFormat(elem->get<std::string>("format"));
 
 	if (properties & COLOR && elem->has("color"))
@@ -112,23 +130,23 @@ void DateTimeComponent::applyTheme(const std::shared_ptr<ThemeData>& theme, cons
 		setRenderBackground(true);
 	}
 
-	if(properties & ALIGNMENT && elem->has("alignment"))
+	if (properties & ALIGNMENT && elem->has("alignment"))
 	{
 		std::string str = elem->get<std::string>("alignment");
-		if(str == "left")
+		if (str == "left")
 			setHorizontalAlignment(ALIGN_LEFT);
-		else if(str == "center")
+		else if (str == "center")
 			setHorizontalAlignment(ALIGN_CENTER);
-		else if(str == "right")
+		else if (str == "right")
 			setHorizontalAlignment(ALIGN_RIGHT);
 		else
-		LOG(LogError) << "Unknown text alignment string: " << str;
+			LOG(LogError) << "Unknown text alignment string: " << str;
 	}
 
-	if(properties & FORCE_UPPERCASE && elem->has("forceUppercase"))
+	if (properties & FORCE_UPPERCASE && elem->has("forceUppercase"))
 		setUppercase(elem->get<bool>("forceUppercase"));
 
-	if(properties & LINE_SPACING && elem->has("lineSpacing"))
+	if (properties & LINE_SPACING && elem->has("lineSpacing"))
 		setLineSpacing(elem->get<float>("lineSpacing"));
 
 	setFont(Font::getFromTheme(elem, properties, mFont));

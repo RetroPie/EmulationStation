@@ -7,13 +7,15 @@
 #include "utils/StringUtil.h"
 #include "Log.h"
 #include "Settings.h"
+#include "../LocaleESHook.h"   // Para es_translate()
 
-#define OFFSET_X 12 // move the entire thing right by this amount (px)
-#define OFFSET_Y 12 // move the entire thing up by this amount (px)
+#define OFFSET_X 12 
+#define OFFSET_Y 12 
 
-#define ICON_TEXT_SPACING 8 // space between [icon] and [text] (px)
-#define ENTRY_SPACING 16 // space between [text] and next [icon] (px)
+#define ICON_TEXT_SPACING 8
+#define ENTRY_SPACING 16
 
+// 🔹 Mapa de íconos
 static const std::map<std::string, const char*> ICON_PATH_MAP {
 	{ "up/down", ":/help/dpad_updown.svg" },
 	{ "left/right", ":/help/dpad_leftright.svg" },
@@ -51,6 +53,32 @@ void HelpComponent::setStyle(const HelpStyle& style)
 	updateGrid();
 }
 
+// 🔹 Normaliza claves como "favorites", "favs", "favorite" → "FAVORITES"
+static std::string normalizeKey(const std::string& key)
+{
+	std::string k = Utils::String::toLower(key);
+
+	if (k == "favorites" || k == "favs" || k == "favorite")
+		return "FAVORITES";
+
+	if (k == "back")
+		return "BACK";
+
+	if (k == "select")
+		return "SELECT";
+
+	if (k == "menu")
+		return "MENU";
+
+	if (k == "random")
+		return "RANDOM";
+
+	if (k == "choose")
+		return "CHOOSE";
+
+	return Utils::String::toUpper(key);
+}
+
 void HelpComponent::updateGrid()
 {
 	if(!Settings::getInstance()->getBool("ShowHelpPrompts") || mPrompts.empty())
@@ -60,15 +88,14 @@ void HelpComponent::updateGrid()
 	}
 
 	std::shared_ptr<Font>& font = mStyle.font;
-
 	mGrid = std::make_shared<ComponentGrid>(mWindow, Vector2i((int)mPrompts.size() * 4, 1));
-	// [icon] [spacer1] [text] [spacer2]
 
 	std::vector< std::shared_ptr<ImageComponent> > icons;
 	std::vector< std::shared_ptr<TextComponent> > labels;
 
 	float width = 0;
 	const float height = Math::round(font->getLetterHeight() * 1.25f);
+
 	for(auto it = mPrompts.cbegin(); it != mPrompts.cend(); it++)
 	{
 		auto icon = std::make_shared<ImageComponent>(mWindow);
@@ -77,16 +104,26 @@ void HelpComponent::updateGrid()
 		icon->setResize(0, height);
 		icons.push_back(icon);
 
-		auto lbl = std::make_shared<TextComponent>(mWindow, Utils::String::toUpper(it->second), font, mStyle.textColor);
+		// 🔹 Traducción corregida
+		std::string normalizedKey = normalizeKey(it->second);
+		std::string translated = es_translate(normalizedKey);
+
+		auto lbl = std::make_shared<TextComponent>(
+			mWindow,
+			Utils::String::toUpper(translated),
+			font,
+			mStyle.textColor
+		);
 		labels.push_back(lbl);
 
 		width += icon->getSize().x() + lbl->getSize().x() + ICON_TEXT_SPACING + ENTRY_SPACING;
 	}
 
 	mGrid->setSize(width, height);
+
 	for(unsigned int i = 0; i < icons.size(); i++)
 	{
-		const int col = i*4;
+		const int col = i * 4;
 		mGrid->setColWidthPerc(col, icons.at(i)->getSize().x() / width);
 		mGrid->setColWidthPerc(col + 1, ICON_TEXT_SPACING / width);
 		mGrid->setColWidthPerc(col + 2, labels.at(i)->getSize().x() / width);
@@ -96,8 +133,6 @@ void HelpComponent::updateGrid()
 	}
 
 	mGrid->setPosition(Vector3f(mStyle.position.x(), mStyle.position.y(), 0.0f));
-	//mGrid->setPosition(OFFSET_X, Renderer::getScreenHeight() - mGrid->getSize().y() - OFFSET_Y);
-	mGrid->setOrigin(mStyle.origin);
 }
 
 std::shared_ptr<TextureResource> HelpComponent::getIconTexture(const char* name)
@@ -114,11 +149,11 @@ std::shared_ptr<TextureResource> HelpComponent::getIconTexture(const char* name)
 	}
 	if(!ResourceManager::getInstance()->fileExists(pathLookup->second))
 	{
-		LOG(LogError) << "Help icon \"" << name << "\" - corresponding image file \"" << pathLookup->second << "\" misisng!";
+		LOG(LogError) << "Missing icon file \"" << pathLookup->second << "\"!";
 		return nullptr;
 	}
 
-	std::shared_ptr<TextureResource> tex = TextureResource::get(pathLookup->second);
+	auto tex = TextureResource::get(pathLookup->second);
 	mIconCache[std::string(name)] = tex;
 	return tex;
 }
@@ -128,9 +163,7 @@ void HelpComponent::setOpacity(unsigned char opacity)
 	GuiComponent::setOpacity(opacity);
 
 	for(unsigned int i = 0; i < mGrid->getChildCount(); i++)
-	{
 		mGrid->getChild(i)->setOpacity(opacity);
-	}
 }
 
 void HelpComponent::render(const Transform4x4f& parentTrans)

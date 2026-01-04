@@ -6,6 +6,8 @@
 #include "platform.h"
 #include "Scripting.h"
 #include "Window.h"
+#include "guis/GuiInfoPopup.h"
+#include "utils/StringUtil.h"
 #include <pugixml.hpp>
 #include <SDL.h>
 #include <iostream>
@@ -275,9 +277,26 @@ bool InputManager::parseEvent(const SDL_Event& ev, Window* window)
 
 	case SDL_JOYDEVICEADDED:
 		addJoystickByDeviceIndex(ev.jdevice.which); // ev.jdevice.which is a device index
+
+			// ★ Notificación (opcional): mando conectado
+			if (window != nullptr)
+			{
+				const char* joyNameC = SDL_JoystickNameForIndex(ev.jdevice.which);
+				std::string joyName = joyNameC ? std::string(joyNameC) : std::string("Controller");
+				window->setInfoPopup(new GuiInfoPopup(window, std::string("★ Connected: ") + joyName, 4000));
+			}
 		return true;
 
 	case SDL_JOYDEVICEREMOVED:
+		// ★ Notificación (opcional): mando desconectado
+		if (window != nullptr)
+		{
+			SDL_Joystick* joy = SDL_JoystickFromInstanceID(ev.jdevice.which);
+			const char* joyNameC = joy ? SDL_JoystickName(joy) : nullptr;
+			std::string joyName = joyNameC ? std::string(joyNameC) : std::string("Controller");
+			window->setInfoPopup(new GuiInfoPopup(window, std::string("★ Disconnected: ") + joyName, 4000));
+		}
+
 		removeJoystickByJoystickID(ev.jdevice.which); // ev.jdevice.which is an SDL_JoystickID (instance ID)
 		return false;
 	}

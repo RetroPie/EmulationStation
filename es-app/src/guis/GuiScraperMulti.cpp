@@ -10,6 +10,7 @@
 #include "PowerSaver.h"
 #include "SystemData.h"
 #include "Window.h"
+#include "LocaleESHook.h"   // ← traducción (es_translate)
 
 GuiScraperMulti::GuiScraperMulti(Window* window, const std::queue<ScraperSearchParams>& searches, bool approveResults) :
 	GuiComponent(window), mBackground(window, ":/frame.png"), mGrid(window, Vector2i(1, 5)),
@@ -28,45 +29,86 @@ GuiScraperMulti::GuiScraperMulti(Window* window, const std::queue<ScraperSearchP
 	mTotalSuccessful = 0;
 	mTotalSkipped = 0;
 
-	// set up grid
-	mTitle = std::make_shared<TextComponent>(mWindow, "SCRAPING IN PROGRESS", Font::get(FONT_SIZE_LARGE), 0x555555FF, ALIGN_CENTER);
+	// título
+	mTitle = std::make_shared<TextComponent>(
+		mWindow,
+		es_translate("SCRAPING IN PROGRESS"),
+		Font::get(FONT_SIZE_LARGE),
+		0x555555FF,
+		ALIGN_CENTER);
 	mGrid.setEntry(mTitle, Vector2i(0, 0), false, true);
 
-	mSystem = std::make_shared<TextComponent>(mWindow, "SYSTEM", Font::get(FONT_SIZE_MEDIUM), 0x777777FF, ALIGN_CENTER);
+	// sistema
+	mSystem = std::make_shared<TextComponent>(
+		mWindow,
+		es_translate("SYSTEM"),
+		Font::get(FONT_SIZE_MEDIUM),
+		0x777777FF,
+		ALIGN_CENTER);
 	mGrid.setEntry(mSystem, Vector2i(0, 1), false, true);
 
-	mSubtitle = std::make_shared<TextComponent>(mWindow, "subtitle text", Font::get(FONT_SIZE_SMALL), 0x888888FF, ALIGN_CENTER);
+	// subtítulo (se actualiza en doNextSearch)
+	mSubtitle = std::make_shared<TextComponent>(
+		mWindow,
+		"",
+		Font::get(FONT_SIZE_SMALL),
+		0x888888FF,
+		ALIGN_CENTER);
 	mGrid.setEntry(mSubtitle, Vector2i(0, 2), false, true);
 
-	mSearchComp = std::make_shared<ScraperSearchComponent>(mWindow,
-		approveResults ? ScraperSearchComponent::ALWAYS_ACCEPT_MATCHING_CRC : ScraperSearchComponent::ALWAYS_ACCEPT_FIRST_RESULT);
+	// componente de búsqueda
+	mSearchComp = std::make_shared<ScraperSearchComponent>(
+		mWindow,
+		approveResults ? ScraperSearchComponent::ALWAYS_ACCEPT_MATCHING_CRC
+		               : ScraperSearchComponent::ALWAYS_ACCEPT_FIRST_RESULT);
 	mSearchComp->setAcceptCallback(std::bind(&GuiScraperMulti::acceptResult, this, std::placeholders::_1));
 	mSearchComp->setSkipCallback(std::bind(&GuiScraperMulti::skip, this));
 	mSearchComp->setCancelCallback(std::bind(&GuiScraperMulti::finish, this));
-	mGrid.setEntry(mSearchComp, Vector2i(0, 3), mSearchComp->getSearchType() != ScraperSearchComponent::ALWAYS_ACCEPT_FIRST_RESULT, true);
+	mGrid.setEntry(
+		mSearchComp,
+		Vector2i(0, 3),
+		mSearchComp->getSearchType() != ScraperSearchComponent::ALWAYS_ACCEPT_FIRST_RESULT,
+		true);
 
 	std::vector< std::shared_ptr<ButtonComponent> > buttons;
 
-	if(approveResults)
+	if (approveResults)
 	{
-		buttons.push_back(std::make_shared<ButtonComponent>(mWindow, "INPUT", "search", [&] {
-			mSearchComp->openInputScreen(mSearchQueue.front());
-			mGrid.resetCursor();
-		}));
+		// INPUT
+		buttons.push_back(std::make_shared<ButtonComponent>(
+			mWindow,
+			es_translate("INPUT"),
+			es_translate("SEARCH"),
+			[&] {
+				mSearchComp->openInputScreen(mSearchQueue.front());
+				mGrid.resetCursor();
+			}));
 
-		buttons.push_back(std::make_shared<ButtonComponent>(mWindow, "SKIP", "skip", [&] {
-			skip();
-			mGrid.resetCursor();
-		}));
+		// SKIP
+		buttons.push_back(std::make_shared<ButtonComponent>(
+			mWindow,
+			es_translate("SKIP"),
+			es_translate("SKIP"),
+			[&] {
+				skip();
+				mGrid.resetCursor();
+			}));
 	}
 
-	buttons.push_back(std::make_shared<ButtonComponent>(mWindow, "STOP", "stop (progress saved)", std::bind(&GuiScraperMulti::finish, this)));
+	// STOP
+	buttons.push_back(std::make_shared<ButtonComponent>(
+		mWindow,
+		es_translate("STOP"),
+		es_translate("STOP (PROGRESS SAVED)"),
+		std::bind(&GuiScraperMulti::finish, this)));
 
 	mButtonGrid = makeButtonGrid(mWindow, buttons);
 	mGrid.setEntry(mButtonGrid, Vector2i(0, 4), true, false);
 
 	setSize(Renderer::getScreenWidth() * 0.95f, Renderer::getScreenHeight() * 0.849f);
-	setPosition((Renderer::getScreenWidth() - mSize.x()) / 2, (Renderer::getScreenHeight() - mSize.y()) / 2);
+	setPosition(
+		(Renderer::getScreenWidth() - mSize.x()) / 2,
+		(Renderer::getScreenHeight() - mSize.y()) / 2);
 
 	doNextSearch();
 }
@@ -74,7 +116,7 @@ GuiScraperMulti::GuiScraperMulti(Window* window, const std::queue<ScraperSearchP
 GuiScraperMulti::~GuiScraperMulti()
 {
 	// view type probably changed (basic -> detailed)
-	for(auto it = SystemData::sSystemVector.cbegin(); it != SystemData::sSystemVector.cend(); it++)
+	for (auto it = SystemData::sSystemVector.cbegin(); it != SystemData::sSystemVector.cend(); it++)
 		ViewController::get()->reloadGameListView(*it, false);
 }
 
@@ -91,19 +133,25 @@ void GuiScraperMulti::onSizeChanged()
 
 void GuiScraperMulti::doNextSearch()
 {
-	if(mSearchQueue.empty())
+	if (mSearchQueue.empty())
 	{
 		finish();
 		return;
 	}
 
-	// update title
-	std::stringstream ss;
+	// sistema actual
 	mSystem->setText(Utils::String::toUpper(mSearchQueue.front().system->getFullName()));
 
-	// update subtitle
-	ss.str(""); // clear
-	ss << "GAME " << (mCurrentGame + 1) << " OF " << mTotalGames << " - " << Utils::String::toUpper(Utils::FileSystem::getFileName(mSearchQueue.front().game->getPath()));
+	// subtítulo: "GAME X OF Y - NOMBRE.EXT"
+	std::stringstream ss;
+	std::string gameLabel = es_translate("GAME");
+	std::string ofLabel   = es_translate("OF");
+
+	ss << gameLabel << " " << (mCurrentGame + 1)
+	   << " " << ofLabel << " " << mTotalGames
+	   << " - "
+	   << Utils::String::toUpper(Utils::FileSystem::getFileName(mSearchQueue.front().game->getPath()));
+
 	mSubtitle->setText(ss.str());
 
 	mSearchComp->search(mSearchQueue.front());
@@ -133,18 +181,35 @@ void GuiScraperMulti::skip()
 void GuiScraperMulti::finish()
 {
 	std::stringstream ss;
-	if(mTotalSuccessful == 0)
-	{
-		ss << "NO GAMES WERE SCRAPED.";
-	}else{
-		ss << mTotalSuccessful << " GAME" << ((mTotalSuccessful > 1) ? "S" : "") << " SUCCESSFULLY SCRAPED!";
 
-		if(mTotalSkipped > 0)
-			ss << "\n" << mTotalSkipped << " GAME" << ((mTotalSkipped > 1) ? "S" : "") << " SKIPPED.";
+	if (mTotalSuccessful == 0)
+	{
+		ss << es_translate("NO GAMES WERE SCRAPED.");
+	}
+	else
+	{
+		// X GAME(S) SUCCESSFULLY SCRAPED!
+		if (mTotalSuccessful == 1)
+			ss << mTotalSuccessful << " " << es_translate("GAME SCRAPED");
+		else
+			ss << mTotalSuccessful << " " << es_translate("GAMES SCRAPED");
+
+		// Y GAME(S) SKIPPED.
+		if (mTotalSkipped > 0)
+		{
+			ss << "\n";
+			if (mTotalSkipped == 1)
+				ss << mTotalSkipped << " " << es_translate("GAME SKIPPED");
+			else
+				ss << mTotalSkipped << " " << es_translate("GAMES SKIPPED");
+		}
 	}
 
-	mWindow->pushGui(new GuiMsgBox(mWindow, ss.str(),
-		"OK", [&] { delete this; }));
+	mWindow->pushGui(new GuiMsgBox(
+		mWindow,
+		ss.str(),
+		es_translate("OK"),
+		[&] { delete this; }));
 
 	mIsProcessing = false;
 	PowerSaver::resume();

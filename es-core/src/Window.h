@@ -7,6 +7,7 @@
 #include "Settings.h"
 
 #include <memory>
+#include <string>
 
 class SystemData;
 class FileData;
@@ -87,8 +88,8 @@ private:
 	HelpComponent*	mHelp;
 	ImageComponent* mBackgroundOverlay;
 	ScreenSaver*	mScreenSaver;
-	InfoPopup*	mInfoPopup;
-	bool		mRenderScreenSaver;
+	InfoPopup*		mInfoPopup;
+	bool			mRenderScreenSaver;
 
 	std::vector<GuiComponent*> mGuiStack;
 
@@ -107,6 +108,14 @@ private:
 	unsigned int mTimeSinceLastInput;
 
 	bool mRenderedHelpPrompts;
+
+	// =========================
+	// Clock overlay (global)
+	// =========================
+	int mClockTimeAccum;
+	std::string mClockLastText;
+	std::unique_ptr<TextCache> mClockTextCache;
+	std::unique_ptr<TextCache> mClockOutlineCache;
 };
 
 #endif // ES_CORE_WINDOW_H

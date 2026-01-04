@@ -3,40 +3,51 @@
 #include "utils/StringUtil.h"
 #include "Settings.h"
 #include "Log.h"
+#include "LocaleESHook.h"   // 🔹 para es_translate()
 
 namespace FileSorts
 {
 
 	const FileData::SortType typesArr[] = {
-		FileData::SortType(&compareName, true, "name, ascending"),
-		FileData::SortType(&compareName, false, "name, descending"),
+		// Nombre
+		FileData::SortType(&compareName, true,  es_translate("name, ascending")),
+		FileData::SortType(&compareName, false, es_translate("name, descending")),
 
-		FileData::SortType(&compareRating, true, "rating, ascending"),
-		FileData::SortType(&compareRating, false, "rating, descending"),
+		// Rating
+		FileData::SortType(&compareRating, true,  es_translate("rating, ascending")),
+		FileData::SortType(&compareRating, false, es_translate("rating, descending")),
 
-		FileData::SortType(&compareTimesPlayed, true, "times played, ascending"),
-		FileData::SortType(&compareTimesPlayed, false, "times played, descending"),
+		// Veces jugado
+		FileData::SortType(&compareTimesPlayed, true,  es_translate("times played, ascending")),
+		FileData::SortType(&compareTimesPlayed, false, es_translate("times played, descending")),
 
-		FileData::SortType(&compareLastPlayed, true, "last played, ascending"),
-		FileData::SortType(&compareLastPlayed, false, "last played, descending"),
+		// Última vez jugado
+		FileData::SortType(&compareLastPlayed, true,  es_translate("last played, ascending")),
+		FileData::SortType(&compareLastPlayed, false, es_translate("last played, descending")),
 
-		FileData::SortType(&compareNumPlayers, true, "number players, ascending"),
-		FileData::SortType(&compareNumPlayers, false, "number players, descending"),
+		// Jugadores
+		FileData::SortType(&compareNumPlayers, true,  es_translate("number players, ascending")),
+		FileData::SortType(&compareNumPlayers, false, es_translate("number players, descending")),
 
-		FileData::SortType(&compareReleaseDate, true, "release date, ascending"),
-		FileData::SortType(&compareReleaseDate, false, "release date, descending"),
+		// Fecha de lanzamiento
+		FileData::SortType(&compareReleaseDate, true,  es_translate("release date, ascending")),
+		FileData::SortType(&compareReleaseDate, false, es_translate("release date, descending")),
 
-		FileData::SortType(&compareGenre, true, "genre, ascending"),
-		FileData::SortType(&compareGenre, false, "genre, descending"),
+		// Género
+		FileData::SortType(&compareGenre, true,  es_translate("genre, ascending")),
+		FileData::SortType(&compareGenre, false, es_translate("genre, descending")),
 
-		FileData::SortType(&compareDeveloper, true, "developer, ascending"),
-		FileData::SortType(&compareDeveloper, false, "developer, descending"),
+		// Desarrollador
+		FileData::SortType(&compareDeveloper, true,  es_translate("developer, ascending")),
+		FileData::SortType(&compareDeveloper, false, es_translate("developer, descending")),
 
-		FileData::SortType(&comparePublisher, true, "publisher, ascending"),
-		FileData::SortType(&comparePublisher, false, "publisher, descending"),
+		// Distribuidor
+		FileData::SortType(&comparePublisher, true,  es_translate("publisher, ascending")),
+		FileData::SortType(&comparePublisher, false, es_translate("publisher, descending")),
 
-		FileData::SortType(&compareSystem, true, "system, ascending"),
-		FileData::SortType(&compareSystem, false, "system, descending")
+		// Sistema
+		FileData::SortType(&compareSystem, true,  es_translate("system, ascending")),
+		FileData::SortType(&compareSystem, false, es_translate("system, descending"))
 	};
 
 	const std::vector<FileData::SortType> SortTypes(typesArr, typesArr + sizeof(typesArr)/sizeof(typesArr[0]));
@@ -123,7 +134,7 @@ namespace FileSorts
 	}
 
 	//If option is enabled, ignore leading articles by temporarily modifying the name prior to sorting
-	//(Artciles are defined within the settings config file)
+	//(Articles are defined within the settings config file)
 	void ignoreLeadingArticles(std::string &name1, std::string &name2) {
 
 		if (Settings::getInstance()->getBool("IgnoreLeadingArticles"))
@@ -133,7 +144,6 @@ namespace FileSorts
 
 			for(Utils::String::stringVector::iterator it = articles.begin(); it != articles.end(); it++)
 			{
-			
 				if (Utils::String::startsWith(Utils::String::toUpper(name1), Utils::String::toUpper(it[0]) + " ")) {
 					name1 = Utils::String::replace(Utils::String::toUpper(name1), Utils::String::toUpper(it[0]) + " ", "");
 				}
@@ -141,11 +151,8 @@ namespace FileSorts
 				if (Utils::String::startsWith(Utils::String::toUpper(name2), Utils::String::toUpper(it[0]) + " ")) {
 					name2 = Utils::String::replace(Utils::String::toUpper(name2), Utils::String::toUpper(it[0]) + " ", "");
 				}
-
 			}
-
 		}
-
 	}
 
 };

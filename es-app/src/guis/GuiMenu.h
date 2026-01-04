@@ -2,38 +2,44 @@
 #ifndef ES_APP_GUIS_GUI_MENU_H
 #define ES_APP_GUIS_GUI_MENU_H
 
-#include "components/MenuComponent.h"
 #include "GuiComponent.h"
-#include "components/OptionListComponent.h"
-#include "FileData.h"
+#include "components/MenuComponent.h"
+#include "components/TextComponent.h"
+#include "HelpStyle.h"
+#include "HelpPrompt.h"
 
 class GuiMenu : public GuiComponent
 {
 public:
 	GuiMenu(Window* window);
+	virtual ~GuiMenu() {}
 
 	bool input(InputConfig* config, Input input) override;
-	void onSizeChanged() override;
 	std::vector<HelpPrompt> getHelpPrompts() override;
 	HelpStyle getHelpStyle() override;
 
 private:
-	void addEntry(const char* name, unsigned int color, bool add_arrow, const std::function<void()>& func);
-	void addVersionInfo();
-	void openCollectionSystemSettings();
-	void openConfigInput();
-	void openOtherSettings();
-	void openQuitMenu();
-	void openScraperSettings();
-	void openScreensaverOptions();
-	void openSoundSettings();
-	void openUISettings();
-
 	MenuComponent mMenu;
 	TextComponent mVersion;
 
-	typedef OptionListComponent<const FileData::SortType*> SortList;
-	std::shared_ptr<SortList> mListSort;
+	// Bloques del menú principal
+	void openScraperSettings();
+	void openSoundSettings();
+	void openUISettings();
+	void openOtherSettings();
+	void openConfigInput();
+	void openQuitMenu();
+	void openCollectionSystemSettings();
+	void openScreensaverOptions();
+
+	// NUEVO: opciones de tema internas (GuiThemeOptions)
+	void openThemeOptions();
+
+	// Helpers internos
+	void addEntry(const char* name, unsigned int color, bool add_arrow, const std::function<void()>& func);
+	void addVersionInfo();
+
+	void onSizeChanged() override;
 };
 
 #endif // ES_APP_GUIS_GUI_MENU_H

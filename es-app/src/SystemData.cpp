@@ -22,6 +22,34 @@ std::vector<SystemData*> SystemData::sSystemVector;
 std::vector<SystemData*> SystemData::sSystemVectorShuffled;
 std::ranlux48 SystemData::sURNG = std::ranlux48(std::random_device()());
 
+namespace
+{
+	// Trunca el nombre a maxLen caracteres, agregando "..." si hace falta
+	std::string truncateMostPlayedName(const std::string& name, size_t maxLen)
+	{
+		if (name.size() <= maxLen)
+			return name;
+
+		if (maxLen <= 3)
+			return name.substr(0, maxLen);
+
+		return name.substr(0, maxLen - 3) + "...";
+	}
+
+	static std::string expandHomeTilde(const std::string& p)
+	{
+		if (p.empty()) return p;
+		if (p[0] != '~') return p;
+		if (p.size() == 1) return Utils::FileSystem::getHomePath();
+		if (p[1] == '/') return Utils::FileSystem::getHomePath() + p.substr(1);
+		return p;
+	}
+
+	static bool fileExistsAny(const std::string& p)
+	{
+		return (!p.empty() && Utils::FileSystem::exists(p));
+	}
+}
 
 SystemData::SystemData(const std::string& name, const std::string& fullName, SystemEnvironmentData* envData, const std::string& themeFolder, bool CollectionSystem) :
 	mName(name), mFullName(fullName), mEnvData(envData), mThemeFolder(themeFolder), mIsCollectionSystem(CollectionSystem), mIsGameSystem(true)
@@ -171,7 +199,6 @@ std::vector<std::string> readList(const std::string& str, const char* delims = "
 
 	return ret;
 }
-
 
 SystemData* SystemData::loadSystem(pugi::xml_node system)
 {
@@ -357,7 +384,7 @@ bool SystemData::loadConfig(Window* window)
 			pThreadPool->wait([window, &processedSystem, systemCount, &systemsNames]
 			{
 				int px = processedSystem - 1;
-				if (px >= 0 && px < systemsNames.size())
+				if (px >= 0 && px < (int)systemsNames.size())
 					window->renderLoadingScreen(systemsNames.at(px), (float)px / (float)(systemCount + 1));
 			}, 10);
 		}
@@ -375,14 +402,14 @@ bool SystemData::loadConfig(Window* window)
 		delete pThreadPool;
 
 		if (window != NULL)
-			window->renderLoadingScreen("Favorites", systemCount == 0 ? 0 : currentSystem / systemCount);
+			window->renderLoadingScreen("Favorites", systemCount == 0 ? 0 : (float)currentSystem / (float)systemCount);
 
 		CollectionSystemManager::get()->updateSystemsList();
 	}
 	else
 	{
 		if (window != NULL)
-			window->renderLoadingScreen("Favorites", systemCount == 0 ? 0 : currentSystem / systemCount);
+			window->renderLoadingScreen("Favorites", systemCount == 0 ? 0 : (float)currentSystem / (float)systemCount);
 
 		CollectionSystemManager::get()->loadCollectionSystems();
 	}
@@ -410,7 +437,7 @@ void SystemData::writeExampleConfig(const std::string& path)
 			"		<!-- The path to start searching for ROMs in. '~' will be expanded to $HOME on Linux or %HOMEPATH% on Windows. -->\n"
 			"		<path>~/roms/nes</path>\n"
 			"\n"
-			"		<!-- A list of extensions to search for, delimited by any of the whitespace characters (\", \\r\\n\\t\").\n"
+			"		<!-- A list of extensions to search for, delimited with any of the whitespace characters (\", \\r\\n\\t\").\n"
 			"		You MUST include the period at the start of the extension! It's also case sensitive. -->\n"
 			"		<extension>.nes .NES</extension>\n"
 			"\n"
@@ -470,7 +497,6 @@ SystemData* SystemData::getNext() const
 		if (it == sSystemVector.cend())
 			it = sSystemVector.cbegin();
 	} while (!(*it)->isVisible());
-	// as we are starting in a valid gamelistview, this will always succeed, even if we have to come full circle.
 
 	return *it;
 }
@@ -484,7 +510,6 @@ SystemData* SystemData::getPrev() const
 		if (it == sSystemVector.crend())
 			it = sSystemVector.crbegin();
 	} while (!(*it)->isVisible());
-	// as we are starting in a valid gamelistview, this will always succeed, even if we have to come full circle.
 
 	return *it;
 }
@@ -498,7 +523,7 @@ std::string SystemData::getGamelistPath(bool forWrite) const
 		return filePath;
 
 	filePath = Utils::FileSystem::getHomePath() + "/.emulationstation/gamelists/" + mName + "/gamelist.xml";
-	if(forWrite) // make sure the directory exists if we're going to write to it, or crashes will happen
+	if(forWrite)
 		Utils::FileSystem::createDirectory(Utils::FileSystem::getParent(filePath));
 	if(forWrite || Utils::FileSystem::exists(filePath))
 		return filePath;
@@ -508,25 +533,16 @@ std::string SystemData::getGamelistPath(bool forWrite) const
 
 std::string SystemData::getThemePath() const
 {
-	// where we check for themes, in order:
-	// 1. [SYSTEM_PATH]/theme.xml
-	// 2. system theme from currently selected theme set [CURRENT_THEME_PATH]/[SYSTEM]/theme.xml
-	// 3. default system theme from currently selected theme set [CURRENT_THEME_PATH]/theme.xml
-
-	// first, check game folder
 	std::string localThemePath = mRootFolder->getPath() + "/theme.xml";
 	if(Utils::FileSystem::exists(localThemePath))
 		return localThemePath;
 
-	// not in game folder, try system theme in theme sets
 	localThemePath = ThemeData::getThemeFromCurrentSet(mThemeFolder);
 
 	if (Utils::FileSystem::exists(localThemePath))
 		return localThemePath;
 
-	// not system theme, try default system theme in theme set
 	localThemePath = Utils::FileSystem::getParent(Utils::FileSystem::getParent(localThemePath)) + "/theme.xml";
-
 	return localThemePath;
 }
 
@@ -546,9 +562,10 @@ SystemData* SystemData::getRandomSystem()
 
 	if (sSystemVectorShuffled.empty())
 	{
-		std::copy_if(sSystemVector.begin(), sSystemVector.end(), std::back_inserter(sSystemVectorShuffled), [](SystemData *sd){ return sd->isGameSystem(); });
-		if (sSystemVectorShuffled.empty()) return NULL;
+		std::copy_if(sSystemVector.begin(), sSystemVector.end(), std::back_inserter(sSystemVectorShuffled),
+			[](SystemData *sd){ return sd->isGameSystem(); });
 
+		if (sSystemVectorShuffled.empty()) return NULL;
 		std::shuffle(sSystemVectorShuffled.begin(), sSystemVectorShuffled.end(), sURNG);
 	}
 
@@ -580,6 +597,179 @@ unsigned int SystemData::getDisplayedGameCount() const
 	return (unsigned int)mRootFolder->getFilesRecursive(GAME, true).size();
 }
 
+unsigned int SystemData::getFavoriteCount() const
+{
+	unsigned int fav = 0;
+
+	auto games = mRootFolder->getFilesRecursive(GAME, true);
+	for (auto game : games)
+	{
+		const std::string& favStr = game->metadata.get("favorite");
+		if (favStr == "true" || favStr == "1")
+			++fav;
+	}
+
+	return fav;
+}
+
+unsigned int SystemData::getMostPlayedCount() const
+{
+	unsigned int maxcount = 0;
+
+	auto games = mRootFolder->getFilesRecursive(GAME, true);
+	for (auto game : games)
+	{
+		int pc = game->metadata.getInt("playcount");
+		if (pc > (int)maxcount)
+			maxcount = (unsigned int)pc;
+	}
+
+	return maxcount;
+}
+
+std::string SystemData::getMostPlayedName() const
+{
+	std::string bestName;
+	int maxcount = -1;
+
+	auto games = mRootFolder->getFilesRecursive(GAME, true);
+	for (auto game : games)
+	{
+		int pc = game->metadata.getInt("playcount");
+		if (pc > maxcount)
+		{
+			maxcount = pc;
+
+			bestName = game->metadata.get("name");
+			if (bestName.empty())
+				bestName = Utils::FileSystem::getStem(game->getPath());
+		}
+	}
+
+	// Sin juegos o nadie jugado → mostramos "N/A"
+	if (maxcount <= 0 || bestName.empty())
+		return "N/A";
+
+	// Límite de 22 caracteres como acordamos
+	return truncateMostPlayedName(bestName, 22);
+}
+
+std::string SystemData::getMostPlayedFull() const
+{
+	std::string name = getMostPlayedName();
+
+	if (name == "N/A")
+		return "N/A";
+
+	unsigned int count = getMostPlayedCount();
+	if (count == 0)
+		return name;
+
+	return name + " (" + std::to_string(count) + ")";
+}
+
+// ✅ NUEVO: imagen del más jugado con fallback pulido (boxart → image → thumbnail → titleshot → marquee)
+std::string SystemData::getMostPlayedImage() const
+{
+	FileData* best = nullptr;
+	int maxcount = -1;
+
+	auto games = mRootFolder->getFilesRecursive(GAME, true);
+	for (auto game : games)
+	{
+		int pc = game->metadata.getInt("playcount");
+		if (pc > maxcount)
+		{
+			maxcount = pc;
+			best = game;
+		}
+	}
+
+	if (!best || maxcount <= 0)
+		return "";
+
+	// Orden pulido (lo que acordamos): boxart → image → thumbnail → (titleshot opcional) → marquee
+	std::string raw = best->metadata.get("boxart");
+	if (raw.empty()) raw = best->metadata.get("image");
+	if (raw.empty()) raw = best->metadata.get("thumbnail");
+	if (raw.empty()) raw = best->metadata.get("titleshot"); // opcional, lo dejamos porque ya lo usabas
+	if (raw.empty()) raw = best->metadata.get("marquee");
+	if (raw.empty())
+		return "";
+
+	raw = expandHomeTilde(raw);
+
+	// 1) absoluta y existe
+	if (!raw.empty() && raw[0] == '/' && fileExistsAny(raw))
+		return raw;
+
+	// 2) relativa -> resolver contra carpeta del gamelist
+	{
+		std::string base = Utils::FileSystem::getParent(getGamelistPath(false));
+		std::string candidate = raw;
+
+		if (candidate.size() >= 2 && candidate[0] == '.' && candidate[1] == '/')
+			candidate = candidate.substr(2);
+
+		candidate = Utils::FileSystem::getGenericPath(base + "/" + candidate);
+		if (fileExistsAny(candidate))
+			return candidate;
+	}
+
+	// 3) fallback por filename a tus 2 rutas
+	std::string filename = Utils::FileSystem::getFileName(raw);
+	if (filename.empty())
+		return "";
+
+	// A) ~/.emulationstation/downloaded_images/<system>/
+	{
+		std::string p = Utils::FileSystem::getHomePath()
+			+ "/.emulationstation/downloaded_images/"
+			+ mName + "/" + filename;
+
+		p = Utils::FileSystem::getGenericPath(p);
+		if (fileExistsAny(p))
+			return p;
+	}
+
+	// B) ~/RetroPie/roms/<system>/media/screenshots/
+	{
+		std::string p = Utils::FileSystem::getHomePath()
+			+ "/RetroPie/roms/"
+			+ mName + "/media/screenshots/" + filename;
+
+		p = Utils::FileSystem::getGenericPath(p);
+		if (fileExistsAny(p))
+			return p;
+	}
+
+	// 4) si no hay extensión, probar comunes
+	std::string ext = Utils::FileSystem::getExtension(filename);
+	std::string stem = Utils::FileSystem::getStem(filename);
+
+	if (ext.empty() && !stem.empty())
+	{
+		const char* exts[] = { ".png", ".jpg", ".jpeg", ".webp" };
+
+		for (auto e : exts)
+		{
+			std::string pA = Utils::FileSystem::getHomePath()
+				+ "/.emulationstation/downloaded_images/" + mName + "/" + stem + e;
+			pA = Utils::FileSystem::getGenericPath(pA);
+			if (fileExistsAny(pA))
+				return pA;
+
+			std::string pB = Utils::FileSystem::getHomePath()
+				+ "/RetroPie/roms/" + mName + "/media/screenshots/" + stem + e;
+			pB = Utils::FileSystem::getGenericPath(pB);
+			if (fileExistsAny(pB))
+				return pB;
+		}
+	}
+
+	return "";
+}
+
 void SystemData::loadTheme()
 {
 	mTheme = std::make_shared<ThemeData>();
@@ -593,12 +783,24 @@ void SystemData::loadTheme()
 	{
 		// build map with system variables for theme to use,
 		std::map<std::string, std::string> sysData;
-		sysData.insert(std::pair<std::string, std::string>("system.name", getName()));
-		sysData.insert(std::pair<std::string, std::string>("system.theme", getThemeFolder()));
-		sysData.insert(std::pair<std::string, std::string>("system.fullName", getFullName()));
+		sysData.insert(std::make_pair("system.name", getName()));
+		sysData.insert(std::make_pair("system.theme", getThemeFolder()));
+		sysData.insert(std::make_pair("system.fullName", getFullName()));
+
+		// Extras para temas (contadores y "más jugado")
+		sysData.insert(std::make_pair("system.gameCount", std::to_string(getGameCount())));
+		sysData.insert(std::make_pair("system.displayedGameCount", std::to_string(getDisplayedGameCount())));
+		sysData.insert(std::make_pair("system.favoriteCount", std::to_string(getFavoriteCount())));
+		sysData.insert(std::make_pair("system.mostPlayedCount", std::to_string(getMostPlayedCount())));
+		sysData.insert(std::make_pair("system.mostPlayedName", getMostPlayedName()));
+		sysData.insert(std::make_pair("system.mostPlayedFull", getMostPlayedFull()));
+
+		// ✅ NUEVO: ruta de imagen resuelta
+		sysData.insert(std::make_pair("system.mostPlayedImage", getMostPlayedImage()));
 
 		mTheme->loadFile(sysData, path);
-	} catch(ThemeException& e)
+	}
+	catch(ThemeException& e)
 	{
 		LOG(LogError) << e.what();
 		mTheme = std::make_shared<ThemeData>(); // reset to empty

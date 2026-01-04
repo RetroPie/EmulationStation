@@ -6,6 +6,7 @@
 #include "components/TextComponent.h"
 #include "resources/Font.h"
 #include "GuiComponent.h"
+#include "Sound.h"          // ← para std::shared_ptr<Sound>
 #include <memory>
 #include <string>
 
@@ -43,9 +44,9 @@ struct SystemViewCarousel
 	Vector2f logoSize;
 	float zIndex;
 
-        // Additional visual tuning properties
-        float minLogoOpacity;      // Minimum opacity (0.0f–1.0f)
-        float scaledLogoSpacing;   // Extra spacing when the focused logo is scaled
+	// NUEVO: propiedades mejoradas para comportamiento visual
+	float minLogoOpacity;      // Opacidad mínima (0.0f–1.0f)
+	float scaledLogoSpacing;   // Ajuste de separación cuando el logo central está escalado
 };
 
 
@@ -60,8 +61,7 @@ public:
 	void goToSystem(SystemData* system, bool animate);
 
 	bool input(InputConfig* config, Input input) override;
-        void update(int deltaTime) override;
-        void onScroll(int amt) override;
+	void update(int deltaTime) override;
 	void render(const Transform4x4f& parentTrans) override;
 
 	void onThemeChanged(const std::shared_ptr<ThemeData>& theme);
@@ -94,7 +94,9 @@ private:
 	bool mViewNeedsReload;
 	bool mShowing;
 
-        std::string mScrollSound;
+	// NUEVO: sonido opcional al mover el carrusel
+	// Se carga desde scrollSound del <carousel>.
+	std::shared_ptr<Sound> mScrollSnd;
 };
 
 #endif // ES_APP_VIEWS_SYSTEM_VIEW_H

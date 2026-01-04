@@ -13,29 +13,31 @@
 #include "Settings.h"
 #include "SystemData.h"
 #include "ThemeData.h"
+#include "LocaleES.h"
+
 #include <pugixml.hpp>
 #include <fstream>
 #include <cstring>
 
-/* Handling the getting, initialization, deinitialization, saving and deletion of
- * a CollectionSystemManager Instance */
+// Handling the getting, initialization, deinitialization, saving and deletion of
+// a CollectionSystemManager Instance
 CollectionSystemManager* CollectionSystemManager::sInstance = NULL;
 
 CollectionSystemManager::CollectionSystemManager(Window* window) : mWindow(window)
 {
 	CollectionSystemDecl systemDecls[] = {
-		//type                  name             long name (display)  default sort (key, order)   theme folder            isCustom
-		{ AUTO_ALL_GAMES,       "all",           "all games",         "name, ascending",          "auto-allgames",        false },
-		{ AUTO_LAST_PLAYED,     "recent",        "last played",       "last played, descending",  "auto-lastplayed",      false },
-		{ AUTO_FAVORITES,       "favorites",     "favorites",         "name, ascending",          "auto-favorites",       false },
-		{ AUTO_RANDOM,          RANDOM_COLL_ID,  "random",            "name, ascending",          "auto-random",          false },
-		{ CUSTOM_COLLECTION,    CUSTOM_COLL_ID,  "collections",       "name, ascending",          "custom-collections",   true  }
+		// type                  name             long name (display)  default sort (key, order)   theme folder            isCustom
+		{ AUTO_ALL_GAMES,       "all",           "ALL GAMES",         "name, ascending",          "auto-allgames",        false },
+		{ AUTO_LAST_PLAYED,     "recent",        "LAST PLAYED",       "last played, descending",  "auto-lastplayed",      false },
+		{ AUTO_FAVORITES,       "favorites",     "FAVORITES",         "name, ascending",          "auto-favorites",       false },
+		{ AUTO_RANDOM,          RANDOM_COLL_ID,  "RANDOM",            "name, ascending",          "auto-random",          false },
+		{ CUSTOM_COLLECTION,    CUSTOM_COLL_ID,  "COLLECTIONS",       "name, ascending",          "custom-collections",   true  }
 	};
 
 	// create a map
 	std::vector<CollectionSystemDecl> tempSystemDecl = std::vector<CollectionSystemDecl>(systemDecls, systemDecls + sizeof(systemDecls) / sizeof(systemDecls[0]));
 
-	for (std::vector<CollectionSystemDecl>::const_iterator it = tempSystemDecl.cbegin(); it != tempSystemDecl.cend(); ++it )
+	for (std::vector<CollectionSystemDecl>::const_iterator it = tempSystemDecl.cbegin(); it != tempSystemDecl.cend(); ++it)
 	{
 		mCollectionSystemDeclsIndex[(*it).name] = (*it);
 	}
@@ -51,7 +53,7 @@ CollectionSystemManager::CollectionSystemManager(Window* window) : mWindow(windo
 	mCollectionEnvData->mPlatformIds = allPlatformIds;
 
 	std::string path = getCollectionsFolder();
-	if(!Utils::FileSystem::exists(path))
+	if (!Utils::FileSystem::exists(path))
 		Utils::FileSystem::createDirectory(path);
 
 	mIsEditingCustom = false;
@@ -67,7 +69,7 @@ CollectionSystemManager::~CollectionSystemManager()
 	removeCollectionsFromDisplayedSystems();
 
 	// iterate the map
-	for(std::map<std::string, CollectionSystemData>::const_iterator it = mCustomCollectionSystemsData.cbegin() ; it != mCustomCollectionSystemsData.cend() ; it++ )
+	for (std::map<std::string, CollectionSystemData>::const_iterator it = mCustomCollectionSystemsData.cbegin(); it != mCustomCollectionSystemsData.cend(); it++)
 	{
 		if (it->second.isPopulated)
 		{
@@ -118,12 +120,12 @@ bool CollectionSystemManager::saveCustomCollection(SystemData* sys)
 		if (!configFile.good())
 		{
 			auto const errNo = errno;
-			LOG(LogError) << "Failed to create file, collection not created: " << absCollectionFn << ": " <<  std::strerror(errNo) << " (" << errNo <<  ")";
+			LOG(LogError) << "Failed to create file, collection not created: " << absCollectionFn << ": " << std::strerror(errNo) << " (" << errNo << ")";
 			return false;
 		}
-		for(std::unordered_map<std::string, FileData*>::const_iterator iter = games.cbegin(); iter != games.cend(); ++iter)
+		for (std::unordered_map<std::string, FileData*>::const_iterator iter = games.cbegin(); iter != games.cend(); ++iter)
 		{
-			std::string path =  iter->first;
+			std::string path = iter->first;
 			configFile << path << std::endl;
 		}
 		configFile.close();
@@ -140,7 +142,7 @@ void CollectionSystemManager::loadCollectionSystems(bool async)
 	mCustomCollectionsBundle = createNewCollectionEntry(decl.name, decl, CollectionFlags::NONE);
 	// we will also load custom systems here
 	initCustomCollectionSystems();
-	if(Settings::getInstance()->getString("CollectionSystemsAuto") != "" || Settings::getInstance()->getString("CollectionSystemsCustom") != "")
+	if (Settings::getInstance()->getString("CollectionSystemsAuto") != "" || Settings::getInstance()->getString("CollectionSystemsCustom") != "")
 	{
 		// Now see which ones are enabled
 		loadEnabledListFromSettings();
@@ -158,7 +160,7 @@ void CollectionSystemManager::loadEnabledListFromSettings()
 	std::vector<std::string> autoSelected = Utils::String::delimitedStringToVector(Settings::getInstance()->getString("CollectionSystemsAuto"), ",", true);
 
 	// iterate the map
-	for(std::map<std::string, CollectionSystemData>::iterator it = mAutoCollectionSystemsData.begin() ; it != mAutoCollectionSystemsData.end() ; it++ )
+	for (std::map<std::string, CollectionSystemData>::iterator it = mAutoCollectionSystemsData.begin(); it != mAutoCollectionSystemsData.end(); it++)
 	{
 		it->second.isEnabled = (std::find(autoSelected.cbegin(), autoSelected.cend(), it->first) != autoSelected.cend());
 	}
@@ -167,7 +169,7 @@ void CollectionSystemManager::loadEnabledListFromSettings()
 	std::vector<std::string> customSelected = Utils::String::delimitedStringToVector(Settings::getInstance()->getString("CollectionSystemsCustom"), ",", true);
 
 	// iterate the map
-	for(std::map<std::string, CollectionSystemData>::iterator it = mCustomCollectionSystemsData.begin() ; it != mCustomCollectionSystemsData.end() ; it++ )
+	for (std::map<std::string, CollectionSystemData>::iterator it = mCustomCollectionSystemsData.begin(); it != mCustomCollectionSystemsData.end(); it++)
 	{
 		it->second.isEnabled = (std::find(customSelected.cbegin(), customSelected.cend(), it->first) != customSelected.cend());
 	}
@@ -181,13 +183,13 @@ void CollectionSystemManager::updateSystemsList()
 	// add custom enabled ones
 	addEnabledCollectionsToDisplayedSystems(&mCustomCollectionSystemsData, false);
 
-	if(Settings::getInstance()->getBool("SortAllSystems"))
+	if (Settings::getInstance()->getBool("SortAllSystems"))
 	{
 		// sort custom individual systems with other systems
 		std::sort(SystemData::sSystemVector.begin(), SystemData::sSystemVector.end(), systemSort);
 
 		// move RetroPie system to end, before auto collections
-		for(auto sysIt = SystemData::sSystemVector.cbegin(); sysIt != SystemData::sSystemVector.cend(); )
+		for (auto sysIt = SystemData::sSystemVector.cbegin(); sysIt != SystemData::sSystemVector.cend(); )
 		{
 			if ((*sysIt)->getName() == "retropie")
 			{
@@ -203,7 +205,7 @@ void CollectionSystemManager::updateSystemsList()
 		}
 	}
 
-	if(mCustomCollectionsBundle->getRootFolder()->getChildren().size() > 0)
+	if (mCustomCollectionsBundle->getRootFolder()->getChildren().size() > 0)
 	{
 		mCustomCollectionsBundle->getRootFolder()->sort(getSortTypeFromString(mCollectionSystemDeclsIndex[CUSTOM_COLL_ID].defaultSort));
 		SystemData::sSystemVector.push_back(mCustomCollectionsBundle);
@@ -215,14 +217,14 @@ void CollectionSystemManager::updateSystemsList()
 	addEnabledCollectionsToDisplayedSystems(&mAutoCollectionSystemsData, true);
 
 	// create views for collections, before reload
-	for(auto sysIt = SystemData::sSystemVector.cbegin(); sysIt != SystemData::sSystemVector.cend(); sysIt++)
+	for (auto sysIt = SystemData::sSystemVector.cbegin(); sysIt != SystemData::sSystemVector.cend(); sysIt++)
 	{
 		if ((*sysIt)->isCollection())
 			ViewController::get()->getGameListView((*sysIt));
 	}
 
 	// if we were editing a custom collection, and it's no longer enabled, exit edit mode
-	if(mIsEditingCustom && !mEditingCollectionSystemData->isEnabled)
+	if (mIsEditingCustom && !mEditingCollectionSystemData->isEnabled)
 	{
 		exitEditMode();
 	}
@@ -239,7 +241,7 @@ void CollectionSystemManager::refreshCollectionSystems(FileData* file)
 	allCollections.insert(mAutoCollectionSystemsData.cbegin(), mAutoCollectionSystemsData.cend());
 	allCollections.insert(mCustomCollectionSystemsData.cbegin(), mCustomCollectionSystemsData.cend());
 
-	for(auto sysDataIt = allCollections.cbegin(); sysDataIt != allCollections.cend(); sysDataIt++)
+	for (auto sysDataIt = allCollections.cbegin(); sysDataIt != allCollections.cend(); sysDataIt++)
 	{
 		updateCollectionSystem(file, sysDataIt->second);
 	}
@@ -327,7 +329,7 @@ void CollectionSystemManager::deleteCollectionFiles(FileData* file)
 	allCollections.insert(mAutoCollectionSystemsData.cbegin(), mAutoCollectionSystemsData.cend());
 	allCollections.insert(mCustomCollectionSystemsData.cbegin(), mCustomCollectionSystemsData.cend());
 
-	for(auto sysDataIt = allCollections.begin(); sysDataIt != allCollections.end(); sysDataIt++)
+	for (auto sysDataIt = allCollections.begin(); sysDataIt != allCollections.end(); sysDataIt++)
 	{
 		if (sysDataIt->second.isPopulated)
 		{
@@ -348,9 +350,9 @@ void CollectionSystemManager::deleteCollectionFiles(FileData* file)
 bool CollectionSystemManager::isThemeGenericCollectionCompatible(bool genericCustomCollections)
 {
 	std::vector<std::string> cfgSys = getCollectionThemeFolders(genericCustomCollections);
-	for(auto sysIt = cfgSys.cbegin(); sysIt != cfgSys.cend(); sysIt++)
+	for (auto sysIt = cfgSys.cbegin(); sysIt != cfgSys.cend(); sysIt++)
 	{
-		if(!themeFolderExists(*sysIt))
+		if (!themeFolderExists(*sysIt))
 			return false;
 	}
 	return true;
@@ -364,7 +366,7 @@ bool CollectionSystemManager::isThemeCustomCollectionCompatible(std::vector<std:
 	// get theme path
 	auto themeSets = ThemeData::getThemeSets();
 	auto set = themeSets.find(Settings::getInstance()->getString("ThemeSet"));
-	if(set != themeSets.cend())
+	if (set != themeSets.cend())
 	{
 		std::string defaultThemeFilePath = set->second.path + "/theme.xml";
 		if (Utils::FileSystem::exists(defaultThemeFilePath))
@@ -373,9 +375,9 @@ bool CollectionSystemManager::isThemeCustomCollectionCompatible(std::vector<std:
 		}
 	}
 
-	for(auto sysIt = stringVector.cbegin(); sysIt != stringVector.cend(); sysIt++)
+	for (auto sysIt = stringVector.cbegin(); sysIt != stringVector.cend(); sysIt++)
 	{
-		if(!themeFolderExists(*sysIt))
+		if (!themeFolderExists(*sysIt))
 			return false;
 	}
 	return true;
@@ -386,12 +388,12 @@ std::string CollectionSystemManager::getValidNewCollectionName(std::string inNam
 	std::string name = inName;
 	const std::string infix = " (" + std::to_string(index) + ")";
 
-	if(index == 0)
+	if (index == 0)
 	{
 		size_t remove = std::string::npos;
 
 		// get valid name
-		while((remove = name.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-[]() ")) != std::string::npos)
+		while ((remove = name.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-[]() ")) != std::string::npos)
 		{
 			name.erase(remove, 1);
 		}
@@ -401,12 +403,12 @@ std::string CollectionSystemManager::getValidNewCollectionName(std::string inNam
 		name += infix;
 	}
 
-	if(name == "")
+	if (name == "")
 	{
 		name = "New Collection";
 	}
 
-	if(name != inName)
+	if (name != inName)
 	{
 		LOG(LogInfo) << "Name collision, had to change name from: " << inName << " to: " << name;
 	}
@@ -423,19 +425,19 @@ std::string CollectionSystemManager::getValidNewCollectionName(std::string inNam
 	systemsInUse.insert(systemsInUse.cend(), autoSys.cbegin(), autoSys.cend());
 	systemsInUse.insert(systemsInUse.cend(), customSys.cbegin(), customSys.cend());
 	systemsInUse.insert(systemsInUse.cend(), userSys.cbegin(), userSys.cend());
-	for(auto sysIt = systemsInUse.cbegin(); sysIt != systemsInUse.cend(); sysIt++)
+	for (auto sysIt = systemsInUse.cbegin(); sysIt != systemsInUse.cend(); sysIt++)
 	{
 		if (*sysIt == name)
 		{
-			if(index > 0) {
+			if (index > 0) {
 				name = name.substr(0, name.size() - infix.size());
 			}
-			return getValidNewCollectionName(name, index+1);
+			return getValidNewCollectionName(name, index + 1);
 		}
 	}
 	// if it matches one of the custom collections reserved names
 	if (mCollectionSystemDeclsIndex.find(name) != mCollectionSystemDeclsIndex.cend())
-		return getValidNewCollectionName(name, index+1);
+		return getValidNewCollectionName(name, index + 1);
 	return name;
 }
 
@@ -458,7 +460,19 @@ void CollectionSystemManager::setEditMode(std::string collectionName, bool quiet
 	mEditingCollectionSystemData = sysData;
 
 	if (!quiet) {
-		GuiInfoPopup* s = new GuiInfoPopup(mWindow, "Editing the '" + Utils::String::toUpper(collectionName) + "' Collection. Add/remove games with Y.", 8000);
+		std::string colUpper = Utils::String::toUpper(collectionName);
+
+		std::string editingBase = LocaleES::get("EDITING_COLLECTION");
+		if (editingBase == "EDITING_COLLECTION")
+			editingBase = "Editing the collection";
+
+		std::string addRemove = LocaleES::get("ADD_REMOVE_GAMES_Y");
+		if (addRemove == "ADD_REMOVE_GAMES_Y")
+			addRemove = "Add/remove games with Y.";
+
+		std::string msg = editingBase + " '" + colUpper + "'. " + addRemove;
+
+		GuiInfoPopup* s = new GuiInfoPopup(mWindow, msg, 8000);
 		mWindow->setInfoPopup(s);
 	}
 }
@@ -466,7 +480,12 @@ void CollectionSystemManager::setEditMode(std::string collectionName, bool quiet
 void CollectionSystemManager::exitEditMode(bool quiet)
 {
 	if (!quiet) {
-		GuiInfoPopup* s = new GuiInfoPopup(mWindow, "Finished editing the '" +  Utils::String::toUpper(mEditingCollection) + "' Collection.", 4000);
+		std::string finishedBase = LocaleES::get("FINISHED_EDITING_COLLECTION");
+		if (finishedBase == "FINISHED_EDITING_COLLECTION")
+			finishedBase = "Finished editing the collection";
+
+		std::string msg = finishedBase + " '" + Utils::String::toUpper(mEditingCollection) + "'.";
+		GuiInfoPopup* s = new GuiInfoPopup(mWindow, msg, 4000);
 		mWindow->setInfoPopup(s);
 	}
 	if (mIsEditingCustom) {
@@ -481,7 +500,8 @@ int CollectionSystemManager::getPressCountInDuration() {
 	Uint32 now = SDL_GetTicks();
 	if (now - mFirstPressMs < DOUBLE_PRESS_DETECTION_DURATION) {
 		return 2;
-	} else {
+	}
+	else {
 		mFirstPressMs = now;
 		return 1;
 	}
@@ -523,7 +543,7 @@ bool CollectionSystemManager::toggleGameInCollection(FileData* file)
 				// remove from index
 				fileIndex->removeFromIndex(collectionEntry);
 				// remove from bundle index as well, if needed
-				if(systemViewToUpdate != sysData)
+				if (systemViewToUpdate != sysData)
 				{
 					systemViewToUpdate->getIndex()->removeFromIndex(collectionEntry);
 				}
@@ -543,7 +563,7 @@ bool CollectionSystemManager::toggleGameInCollection(FileData* file)
 				rootFolder->sort(getSortTypeFromString(mEditingCollectionSystemData->decl.defaultSort));
 				ViewController::get()->onFileChanged(systemViewToUpdate->getRootFolder(), FILE_SORTED);
 				// add to bundle index as well, if needed
-				if(systemViewToUpdate != sysData)
+				if (systemViewToUpdate != sysData)
 				{
 					systemViewToUpdate->getIndex()->addToIndex(newGame);
 				}
@@ -574,13 +594,40 @@ bool CollectionSystemManager::toggleGameInCollection(FileData* file)
 
 			refreshCollectionSystems(file->getSourceFileData());
 		}
+
+		std::string sysNameUpper = Utils::String::toUpper(sysName);
+
 		if (adding)
 		{
-			s = new GuiInfoPopup(mWindow, "Added '" + Utils::String::removeParenthesis(name) + "' to '" + Utils::String::toUpper(sysName) + "'", 4000);
+			std::string addedBase = LocaleES::get("ADDED_TO_COLLECTION");
+			if (addedBase == "ADDED_TO_COLLECTION")
+				addedBase = "Added";
+
+			std::string toWord = LocaleES::get("TO_COLLECTION");
+			if (toWord == "TO_COLLECTION")
+				toWord = "to";
+
+			s = new GuiInfoPopup(
+				mWindow,
+				addedBase + " '" + Utils::String::removeParenthesis(name) + "' " + toWord + " '" + sysNameUpper + "'",
+				4000
+			);
 		}
 		else
 		{
-			s = new GuiInfoPopup(mWindow, "Removed '" + Utils::String::removeParenthesis(name) + "' from '" + Utils::String::toUpper(sysName) + "'", 4000);
+			std::string removedBase = LocaleES::get("REMOVED_FROM_COLLECTION");
+			if (removedBase == "REMOVED_FROM_COLLECTION")
+				removedBase = "Removed";
+
+			std::string fromWord = LocaleES::get("FROM_COLLECTION");
+			if (fromWord == "FROM_COLLECTION")
+				fromWord = "from";
+
+			s = new GuiInfoPopup(
+				mWindow,
+				removedBase + " '" + Utils::String::removeParenthesis(name) + "' " + fromWord + " '" + sysNameUpper + "'",
+				4000
+			);
 		}
 
 		mWindow->setInfoPopup(s);
@@ -638,7 +685,7 @@ void CollectionSystemManager::recreateCollection(SystemData* sysData)
 	SystemData* systemViewToUpdate = getSystemToView(sysData);
 
 	// while there are games there, remove them from the view and system
-	while(rootFolder->getChildrenByFilename().size() > 0)
+	while (rootFolder->getChildrenByFilename().size() > 0)
 		ViewController::get()->getGameListView(systemViewToUpdate).get()->remove(rootFolder->getChildrenByFilename().begin()->second, false, false);
 
 	colSysData->isPopulated = false;
@@ -661,7 +708,7 @@ void CollectionSystemManager::recreateCollection(SystemData* sysData)
 // loads Automatic Collection systems (All, Favorites, Last Played, Random)
 void CollectionSystemManager::initAutoCollectionSystems()
 {
-	for(std::map<std::string, CollectionSystemDecl>::const_iterator it = mCollectionSystemDeclsIndex.cbegin() ; it != mCollectionSystemDeclsIndex.cend() ; it++ )
+	for (std::map<std::string, CollectionSystemDecl>::const_iterator it = mCollectionSystemDeclsIndex.cbegin(); it != mCollectionSystemDeclsIndex.cend(); it++)
 	{
 		CollectionSystemDecl sysDecl = it->second;
 		if (!sysDecl.isCustom)
@@ -679,7 +726,10 @@ void CollectionSystemManager::updateCollectionFolderMetadata(SystemData* sys)
 {
 	FileData* rootFolder = sys->getRootFolder();
 
-	std::string desc = "This collection is empty.";
+	std::string desc = LocaleES::get("EMPTY_COLLECTION");
+	if (desc == "EMPTY_COLLECTION")
+		desc = "This collection is empty.";
+
 	std::string rating = "0";
 	std::string players = "1";
 	std::string releasedate = "N/A";
@@ -691,11 +741,11 @@ void CollectionSystemManager::updateCollectionFolderMetadata(SystemData* sys)
 
 	std::unordered_map<std::string, FileData*> games = rootFolder->getChildrenByFilename();
 
-	if(games.size() > 0)
+	if (games.size() > 0)
 	{
 		std::string games_list = "";
 		int games_counter = 0;
-		for(std::unordered_map<std::string, FileData*>::const_iterator iter = games.cbegin(); iter != games.cend(); ++iter)
+		for (std::unordered_map<std::string, FileData*>::const_iterator iter = games.cbegin(); iter != games.cend(); ++iter)
 		{
 			games_counter++;
 			FileData* file = iter->second;
@@ -712,21 +762,21 @@ void CollectionSystemManager::updateCollectionFolderMetadata(SystemData* sys)
 			developer = (developer == "None" ? new_developer : (new_developer != developer ? "Various" : new_developer));
 			genre = (genre == "None" ? new_genre : (new_genre != genre ? "Various" : new_genre));
 
-			switch(games_counter)
+			switch (games_counter)
 			{
-				case 2:
-				case 3:
-					games_list += ", ";
-				case 1:
-					games_list += "'" + file->getName() + "'";
-					break;
-				case 4:
-					games_list += " among other titles.";
+			case 2:
+			case 3:
+				games_list += ", ";
+			case 1:
+				games_list += "'" + file->getName() + "'";
+				break;
+			case 4:
+				games_list += " among other titles.";
 			}
 		}
 
 		desc = "This collection contains " + std::to_string(games_counter) + " game"
-				+ (games_counter == 1 ? "" : "s") + ", including " + games_list;
+			+ (games_counter == 1 ? "" : "s") + ", including " + games_list;
 
 		FileData* randomGame = sys->getRandomGame();
 
@@ -781,7 +831,27 @@ SystemData* CollectionSystemManager::addNewCustomCollection(std::string name, bo
 // creates a new, empty Collection system, based on the name and declaration
 SystemData* CollectionSystemManager::createNewCollectionEntry(std::string name, CollectionSystemDecl sysDecl, const CollectionFlags flags)
 {
-	SystemData* newSys = new SystemData(name, sysDecl.longName, mCollectionEnvData, sysDecl.themeFolder, true);
+	// longName en este punto es:
+	//  - "ALL GAMES"
+	//  - "LAST PLAYED"
+	//  - "FAVORITES"
+	//  - "RANDOM"
+	//  - "COLLECTIONS"
+	std::string displayName = sysDecl.longName;
+
+	if (!sysDecl.isCustom)
+	{
+		// Usamos la misma clave en MAYÚSCULAS para el .ini
+		std::string key = sysDecl.longName;
+		std::string translated = LocaleES::get(key);
+
+		if (translated != key)
+			displayName = translated;
+		else
+			displayName = sysDecl.longName;
+	}
+
+	SystemData* newSys = new SystemData(name, displayName, mCollectionEnvData, sysDecl.themeFolder, true);
 
 	CollectionSystemData newCollectionData;
 	newCollectionData.system = newSys;
@@ -824,7 +894,7 @@ void CollectionSystemManager::addRandomGames(SystemData* newSys, SystemData* sou
 	}
 
 	// load exclusion collection
-	std::unordered_map<std::string,FileData*> exclusionMap;
+	std::unordered_map<std::string, FileData*> exclusionMap;
 	std::string exclusionCollection = Settings::getInstance()->getString("RandomCollectionExclusionCollection");
 	auto sysDataIt = mCustomCollectionSystemsData.find(exclusionCollection);
 
@@ -850,7 +920,7 @@ void CollectionSystemManager::addRandomGames(SystemData* newSys, SystemData* sou
 		FileData* randomGame = sourceSystem->getRandomGame()->getSourceFileData();
 		CollectionFileData* newGame = NULL;
 
-		if(exclusionMap.find(randomGame->getFullPath()) == exclusionMap.end())
+		if (exclusionMap.find(randomGame->getFullPath()) == exclusionMap.end())
 		{
 			// Not in the exclusion collection
 			newGame = new CollectionFileData(randomGame, newSys);
@@ -889,7 +959,7 @@ void CollectionSystemManager::populateRandomCollectionFromCollections(std::map<s
 	FileFilterIndex* index = newSys->getIndex();
 
 	// iterate the auto collections map
-	for(auto &c : mAutoCollectionSystemsData)
+	for (auto& c : mAutoCollectionSystemsData)
 	{
 		CollectionSystemData csd = c.second;
 		// we can't add games from the random collection to the random collection
@@ -905,7 +975,7 @@ void CollectionSystemManager::populateRandomCollectionFromCollections(std::map<s
 	}
 
 	// iterate the custom collections map
-	for(auto &c : mCustomCollectionSystemsData)
+	for (auto& c : mCustomCollectionSystemsData)
 	{
 		CollectionSystemData csd = c.second;
 		// collections might not be populated
@@ -937,7 +1007,7 @@ void CollectionSystemManager::populateAutoCollection(CollectionSystemData* sysDa
 		mapsForRandomColl["RandomCollectionSystemsCustom"] = randomCustColl;
 	}
 	// Only iterate through game systems, not collections yet
-	for(auto sysIt = SystemData::sSystemVector.cbegin(); sysIt != SystemData::sSystemVector.cend(); sysIt++)
+	for (auto sysIt = SystemData::sSystemVector.cbegin(); sysIt != SystemData::sSystemVector.cend(); sysIt++)
 	{
 		// we won't iterate all collections
 		if ((*sysIt)->isGameSystem() && !(*sysIt)->isCollection())
@@ -950,24 +1020,24 @@ void CollectionSystemManager::populateAutoCollection(CollectionSystemData* sysDa
 			{
 				std::vector<FileData*> files = (*sysIt)->getRootFolder()->getFilesRecursive(GAME);
 
-				for(auto gameIt = files.cbegin(); gameIt != files.cend(); gameIt++)
+				for (auto gameIt = files.cbegin(); gameIt != files.cend(); gameIt++)
 				{
 					bool include = includeFileInAutoCollections(*gameIt);
-					switch(sysDecl.type) {
-						case AUTO_LAST_PLAYED:
-							include = include && (*gameIt)->metadata.get("playcount") > "0";
-							break;
-						case AUTO_FAVORITES:
-							// we may still want to add files we don't want in auto collections in "favorites"
-							include = (*gameIt)->metadata.get("favorite") == "true";
-							break;
-						case AUTO_ALL_GAMES:
-							break;
-						default:
-							// No-op to prevent compiler warnings
-							// Getting here means that the file is not part of a pre-defined collection.
-							include = false;
-							break;
+					switch (sysDecl.type) {
+					case AUTO_LAST_PLAYED:
+						include = include && (*gameIt)->metadata.get("playcount") > "0";
+						break;
+					case AUTO_FAVORITES:
+						// we may still want to add files we don't want in auto collections in "favorites"
+						include = (*gameIt)->metadata.get("favorite") == "true";
+						break;
+					case AUTO_ALL_GAMES:
+						break;
+					default:
+						// No-op to prevent compiler warnings
+						// Getting here means that the file is not part of a pre-defined collection.
+						include = false;
+						break;
 					}
 
 					if (include)
@@ -1008,7 +1078,7 @@ void CollectionSystemManager::populateCustomCollection(CollectionSystemData* sys
 	CollectionSystemDecl sysDecl = sysData->decl;
 	std::string path = getCustomCollectionConfigPath(newSys->getName());
 
-	if(!Utils::FileSystem::exists(path))
+	if (!Utils::FileSystem::exists(path))
 	{
 		LOG(LogInfo) << "Couldn't find custom collection config file at " << path;
 		return;
@@ -1022,12 +1092,12 @@ void CollectionSystemManager::populateCustomCollection(CollectionSystemData* sys
 	std::ifstream input(path);
 
 	// get all files map
-	std::unordered_map<std::string,FileData*> allFilesMap = getAllGamesCollection()->getRootFolder()->getChildrenByFilename();
+	std::unordered_map<std::string, FileData*> allFilesMap = getAllGamesCollection()->getRootFolder()->getChildrenByFilename();
 
 	// iterate list of files in config file
-	for(std::string gameKey; getline(input, gameKey); )
+	for (std::string gameKey; getline(input, gameKey); )
 	{
-		std::unordered_map<std::string,FileData*>::const_iterator it = allFilesMap.find(gameKey);
+		std::unordered_map<std::string, FileData*>::const_iterator it = allFilesMap.find(gameKey);
 		if (it != allFilesMap.cend())
 		{
 			CollectionFileData* newGame = new CollectionFileData(it->second, newSys);
@@ -1048,7 +1118,7 @@ void CollectionSystemManager::populateCustomCollection(CollectionSystemData* sys
 void CollectionSystemManager::removeCollectionsFromDisplayedSystems()
 {
 	// remove all Collection Systems
-	for(auto sysIt = SystemData::sSystemVector.cbegin(); sysIt != SystemData::sSystemVector.cend(); )
+	for (auto sysIt = SystemData::sSystemVector.cbegin(); sysIt != SystemData::sSystemVector.cend(); )
 	{
 		if ((*sysIt)->isCollection())
 		{
@@ -1066,7 +1136,7 @@ void CollectionSystemManager::removeCollectionsFromDisplayedSystems()
 	{
 		FileData* customRoot = mCustomCollectionsBundle->getRootFolder();
 		std::vector<FileData*> mChildren = customRoot->getChildren();
-		for(auto it = mChildren.cbegin(); it != mChildren.cend(); it++)
+		for (auto it = mChildren.cbegin(); it != mChildren.cend(); it++)
 		{
 			customRoot->removeChild(*it);
 		}
@@ -1081,24 +1151,24 @@ void CollectionSystemManager::removeCollectionsFromDisplayedSystems()
 void CollectionSystemManager::addEnabledCollectionsToDisplayedSystems(std::map<std::string, CollectionSystemData>* colSystemData, bool processRandom)
 {
 	// add auto enabled ones
-	for(std::map<std::string, CollectionSystemData>::iterator it = colSystemData->begin() ; it != colSystemData->end() ; it++ )
+	for (std::map<std::string, CollectionSystemData>::iterator it = colSystemData->begin(); it != colSystemData->end(); it++)
 	{
 
 		if ((!processRandom && it->second.decl.type != AUTO_RANDOM) || (processRandom && it->second.decl.type == AUTO_RANDOM))
 		{
-			if(it->second.isEnabled)
+			if (it->second.isEnabled)
 			{
 				// check if populated, otherwise populate
 				if (!it->second.isPopulated)
 				{
-					if(it->second.decl.isCustom)
+					if (it->second.decl.isCustom)
 						populateCustomCollection(&(it->second));
 					else
 						populateAutoCollection(&(it->second));
 				}
 
 				// check if it has its own view
-				if(!it->second.decl.isCustom || themeFolderExists(it->first) || !Settings::getInstance()->getBool("UseCustomCollectionsSystem"))
+				if (!it->second.decl.isCustom || themeFolderExists(it->first) || !Settings::getInstance()->getBool("UseCustomCollectionsSystem"))
 				{
 					// exists theme folder, or we chose not to bundle it under the custom-collections system
 					// so we need to create a view
@@ -1121,7 +1191,7 @@ std::vector<std::string> CollectionSystemManager::getSystemsFromConfig()
 	std::vector<std::string> systems;
 	std::string path = SystemData::getConfigPath(false);
 
-	if(!Utils::FileSystem::exists(path))
+	if (!Utils::FileSystem::exists(path))
 	{
 		return systems;
 	}
@@ -1129,7 +1199,7 @@ std::vector<std::string> CollectionSystemManager::getSystemsFromConfig()
 	pugi::xml_document doc;
 	pugi::xml_parse_result res = doc.load_file(path.c_str());
 
-	if(!res)
+	if (!res)
 	{
 		return systems;
 	}
@@ -1137,12 +1207,12 @@ std::vector<std::string> CollectionSystemManager::getSystemsFromConfig()
 	//actually read the file
 	pugi::xml_node systemList = doc.child("systemList");
 
-	if(!systemList)
+	if (!systemList)
 	{
 		return systems;
 	}
 
-	for(pugi::xml_node system = systemList.child("system"); system; system = system.next_sibling("system"))
+	for (pugi::xml_node system = systemList.child("system"); system; system = system.next_sibling("system"))
 	{
 		// theme folder
 		std::string themeFolder = system.child("theme").text().get();
@@ -1158,14 +1228,14 @@ std::vector<std::string> CollectionSystemManager::getSystemsFromTheme()
 	std::vector<std::string> systems;
 
 	auto themeSets = ThemeData::getThemeSets();
-	if(themeSets.empty())
+	if (themeSets.empty())
 	{
 		// no theme sets available
 		return systems;
 	}
 
 	std::map<std::string, ThemeSet>::const_iterator set = themeSets.find(Settings::getInstance()->getString("ThemeSet"));
-	if(set == themeSets.cend())
+	if (set == themeSets.cend())
 	{
 		// currently selected theme set is missing, so just pick the first available set
 		set = themeSets.cbegin();
@@ -1184,9 +1254,9 @@ std::vector<std::string> CollectionSystemManager::getSystemsFromTheme()
 			{
 				//... here you have a directory
 				std::string folder = *it;
-				folder = folder.substr(themePath.size()+1);
+				folder = folder.substr(themePath.size() + 1);
 
-				if(Utils::FileSystem::exists(set->second.getThemePath(folder)))
+				if (Utils::FileSystem::exists(set->second.getThemePath(folder)))
 				{
 					systems.push_back(folder);
 				}
@@ -1215,7 +1285,7 @@ std::vector<std::string> CollectionSystemManager::getUnusedSystemsFromTheme()
 	systemsInUse.insert(systemsInUse.cend(), customSys.cbegin(), customSys.cend());
 	systemsInUse.insert(systemsInUse.cend(), userSys.cbegin(), userSys.cend());
 
-	for(auto sysIt = themeSys.cbegin(); sysIt != themeSys.cend(); )
+	for (auto sysIt = themeSys.cbegin(); sysIt != themeSys.cend(); )
 	{
 		if (std::find(systemsInUse.cbegin(), systemsInUse.cend(), *sysIt) != systemsInUse.cend())
 		{
@@ -1248,7 +1318,7 @@ std::vector<std::string> CollectionSystemManager::getCollectionsFromConfigFolder
 				// need to confirm filename matches config format
 				if (filename != "custom-.cfg" && Utils::String::startsWith(filename, "custom-") && Utils::String::endsWith(filename, ".cfg"))
 				{
-					filename = filename.substr(7, filename.size()-11);
+					filename = filename.substr(7, filename.size() - 11);
 					systems.push_back(filename);
 				}
 				else
@@ -1265,7 +1335,7 @@ std::vector<std::string> CollectionSystemManager::getCollectionsFromConfigFolder
 std::vector<std::string> CollectionSystemManager::getCollectionThemeFolders(bool custom)
 {
 	std::vector<std::string> systems;
-	for(std::map<std::string, CollectionSystemDecl>::const_iterator it = mCollectionSystemDeclsIndex.cbegin() ; it != mCollectionSystemDeclsIndex.cend() ; it++ )
+	for (std::map<std::string, CollectionSystemDecl>::const_iterator it = mCollectionSystemDeclsIndex.cbegin(); it != mCollectionSystemDeclsIndex.cend(); it++)
 	{
 		CollectionSystemDecl sysDecl = it->second;
 		if (sysDecl.isCustom == custom)
@@ -1280,7 +1350,7 @@ std::vector<std::string> CollectionSystemManager::getCollectionThemeFolders(bool
 std::vector<std::string> CollectionSystemManager::getUserCollectionThemeFolders()
 {
 	std::vector<std::string> systems;
-	for(std::map<std::string, CollectionSystemData>::const_iterator it = mCustomCollectionSystemsData.cbegin() ; it != mCustomCollectionSystemsData.cend() ; it++ )
+	for (std::map<std::string, CollectionSystemData>::const_iterator it = mCustomCollectionSystemsData.cbegin(); it != mCustomCollectionSystemsData.cend(); it++)
 	{
 		systems.push_back(it->second.decl.themeFolder);
 	}
@@ -1306,8 +1376,14 @@ bool CollectionSystemManager::includeFileInAutoCollections(FileData* file)
 bool CollectionSystemManager::needDoublePress(int presscount) {
 	if (Settings::getInstance()->getBool("DoublePressRemovesFromFavs") && presscount < 2)
 	{
-		GuiInfoPopup* toast = new GuiInfoPopup(mWindow, "Press again to remove from '" + Utils::String::toUpper(mEditingCollection)
-		+ "'", DOUBLE_PRESS_DETECTION_DURATION, 100, 200);
+		std::string base = LocaleES::get("PRESS_AGAIN_TO_REMOVE");
+		if (base == "PRESS_AGAIN_TO_REMOVE")
+			base = "Press again to remove from";
+
+		std::string msg = base + " '" + Utils::String::toUpper(mEditingCollection) + "'";
+
+		GuiInfoPopup* toast = new GuiInfoPopup(mWindow, msg,
+			DOUBLE_PRESS_DETECTION_DURATION, 100, 200);
 		mWindow->setInfoPopup(toast);
 		return true;
 	}

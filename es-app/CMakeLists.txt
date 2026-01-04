@@ -13,6 +13,12 @@ set(ES_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/FileFilterIndex.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/SystemScreenSaver.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/CollectionSystemManager.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/LocaleES.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ThemeOptions.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/guis/GuiThemeOptions.h
+
+    # 🔊 Background music
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/audio/BackgroundMusicManager.h
 
     # GuiComponents
     ${CMAKE_CURRENT_SOURCE_DIR}/src/components/AsyncReqComponent.h
@@ -73,6 +79,15 @@ set(ES_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/FileFilterIndex.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/SystemScreenSaver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/CollectionSystemManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/LocaleES.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ThemeOptions.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/guis/GuiThemeOptions.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/guis/GuiThemeOptions.h
+    
+
+    # 🔊 Background music
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/audio/BackgroundMusicManager.cpp
+
 
     # GuiComponents
     ${CMAKE_CURRENT_SOURCE_DIR}/src/components/AsyncReqComponent.cpp
@@ -115,35 +130,24 @@ set(ES_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/views/UIModeController.cpp
 )
 
-#-------------------------------------------------------------------------------
-# define OS specific sources and headers
 if(MSVC)
     LIST(APPEND ES_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/EmulationStation.rc
     )
 endif()
 
-#-------------------------------------------------------------------------------
-# define target
 include_directories(${COMMON_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/src)
 add_executable(emulationstation ${ES_SOURCES} ${ES_HEADERS})
-target_link_libraries(emulationstation ${COMMON_LIBRARIES} es-core)
 
-# special properties for Windows builds
+# 🔗 añadimos SDL2_mixer para la música de fondo
+target_link_libraries(emulationstation ${COMMON_LIBRARIES} es-core SDL2_mixer)
+
 if(MSVC)
-    # Always compile with the "WINDOWS" subsystem to avoid console window flashing at startup
-    # when --debug is not set (see es-core/src/main.cpp for explanation).
-    # The console will still be shown if launched with --debug.
-    # Note that up to CMake 2.8.10 this feature is broken: http://public.kitware.com/Bug/view.php?id=12566
     set_target_properties(emulationstation PROPERTIES LINK_FLAGS_DEBUG "/SUBSYSTEM:WINDOWS")
     set_target_properties(emulationstation PROPERTIES LINK_FLAGS_RELWITHDEBINFO "/SUBSYSTEM:WINDOWS")
     set_target_properties(emulationstation PROPERTIES LINK_FLAGS_RELEASE "/SUBSYSTEM:WINDOWS")
     set_target_properties(emulationstation PROPERTIES LINK_FLAGS_MINSIZEREL "/SUBSYSTEM:WINDOWS")
 endif()
-
-
-#-------------------------------------------------------------------------------
-# set up CPack install stuff so `make install` does something useful
 
 install(TARGETS emulationstation
     RUNTIME
@@ -154,7 +158,8 @@ INCLUDE(InstallRequiredSystemLibraries)
 SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A flexible graphical emulator front-end")
 SET(CPACK_PACKAGE_DESCRIPTION "EmulationStation is a flexible, graphical front-end designed for keyboardless navigation of your multi-platform retro game collection.")
 
-SET(CPACK_RESOURCE_FILE LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.md")
+# 🔹 CORRECCIÓN: se mueve el LICENSE.md a la raíz del proyecto
+SET(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE.md")
 SET(CPACK_RESOURCE_FILE README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
 
 SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "Alec Lofquist <allofquist@yahoo.com>")

@@ -27,7 +27,11 @@ struct SystemEnvironmentData
 class SystemData
 {
 public:
-	SystemData(const std::string& name, const std::string& fullName, SystemEnvironmentData* envData, const std::string& themeFolder, bool CollectionSystem = false);
+	SystemData(const std::string& name,
+	           const std::string& fullName,
+	           SystemEnvironmentData* envData,
+	           const std::string& themeFolder,
+	           bool CollectionSystem = false);
 	~SystemData();
 
 	inline FileData* getRootFolder() const { return mRootFolder; };
@@ -38,7 +42,13 @@ public:
 	inline const std::string& getThemeFolder() const { return mThemeFolder; }
 	inline SystemEnvironmentData* getSystemEnvData() const { return mEnvData; }
 	inline const std::vector<PlatformIds::PlatformId>& getPlatformIds() const { return mEnvData->mPlatformIds; }
-	inline bool hasPlatformId(PlatformIds::PlatformId id) { if (!mEnvData) return false; return std::find(mEnvData->mPlatformIds.cbegin(), mEnvData->mPlatformIds.cend(), id) != mEnvData->mPlatformIds.cend(); }
+	inline bool hasPlatformId(PlatformIds::PlatformId id)
+	{
+		if (!mEnvData) return false;
+		return std::find(mEnvData->mPlatformIds.cbegin(),
+		                 mEnvData->mPlatformIds.cend(),
+		                 id) != mEnvData->mPlatformIds.cend();
+	}
 
 	inline const std::shared_ptr<ThemeData>& getTheme() const { return mTheme; }
 
@@ -49,17 +59,32 @@ public:
 	unsigned int getGameCount() const;
 	unsigned int getDisplayedGameCount() const;
 
+	// NUEVO: contadores para favoritos y más jugados
+	unsigned int getFavoriteCount() const;
+	unsigned int getMostPlayedCount() const;
+	std::string  getMostPlayedName() const;
+	std::string  getMostPlayedFull() const;
+
+	// NUEVO: imagen del juego más jugado (para usar en el tema)
+	std::string  getMostPlayedImage() const;
+
 	static void deleteSystems();
-	static bool loadConfig(Window* window); //Load the system config file at getConfigPath(). Returns true if no errors were encountered. An example will be written if the file doesn't exist.
+	static bool loadConfig(Window* window);
 	static void writeExampleConfig(const std::string& path);
-	static std::string getConfigPath(bool forWrite); // if forWrite, will only return ~/.emulationstation/es_systems.cfg, never /etc/emulationstation/es_systems.cfg
+	static std::string getConfigPath(bool forWrite);
 
 	static std::vector<SystemData*> sSystemVector;
 	static std::vector<SystemData*> sSystemVectorShuffled;
 	static std::ranlux48 sURNG;
 
-	inline std::vector<SystemData*>::const_iterator getIterator() const { return std::find(sSystemVector.cbegin(), sSystemVector.cend(), this); };
-	inline std::vector<SystemData*>::const_reverse_iterator getRevIterator() const { return std::find(sSystemVector.crbegin(), sSystemVector.crend(), this); };
+	inline std::vector<SystemData*>::const_iterator getIterator() const
+	{
+		return std::find(sSystemVector.cbegin(), sSystemVector.cend(), this);
+	};
+	inline std::vector<SystemData*>::const_reverse_iterator getRevIterator() const
+	{
+		return std::find(sSystemVector.crbegin(), sSystemVector.crend(), this);
+	};
 	inline bool isCollection() { return mIsCollectionSystem; };
 	inline bool isGameSystem() { return mIsGameSystem; };
 
@@ -71,7 +96,6 @@ public:
 	static SystemData* getRandomSystem();
 	FileData* getRandomGame();
 
-	// Load or re-load theme.
 	void loadTheme();
 
 	FileFilterIndex* getIndex() { return mFilterIndex; };
@@ -97,7 +121,6 @@ private:
 	FileFilterIndex* mFilterIndex;
 
 	FileData* mRootFolder;
-	// for getRandomGame()
 	std::vector<FileData*> mGamesShuffled;
 };
 

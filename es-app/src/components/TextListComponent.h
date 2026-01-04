@@ -189,7 +189,7 @@ void TextListComponent<T>::render(const Transform4x4f& parentTrans)
 	Renderer::pushClipRect(Vector2i((int)(trans.translation().x() + mHorizontalMargin), (int)trans.translation().y()),
 		Vector2i((int)(dim.x() - mHorizontalMargin*2), (int)dim.y()));
 
-	for(int i = mViewportTop; i < listCutoff; i++)
+	for(int i = mViewportTop; i < (int)listCutoff; i++)
 	{
 		typename IList<TextListData, T>::Entry& entry = mEntries.at((unsigned int)i);
 
@@ -427,14 +427,27 @@ void TextListComponent<T>::applyTheme(const std::shared_ptr<ThemeData>& theme, c
 	const float selectorHeight = Math::max(mFont->getHeight(1.0), (float)mFont->getSize()) * mLineSpacing;
 	setSelectorHeight(selectorHeight);
 
-        if (properties & SOUND)
-        {
-                // Clear any previous theme scroll sound so themes can remove the override.
-                mScrollSound.clear();
+	// 🔊 SONIDO DE SCROLL
+	if(properties & SOUND)
+	{
+		// 1) Prioridad: scrollSound definido directamente en <textlist>
+		if(elem->has("scrollSound"))
+		{
+			mScrollSound = elem->get<std::string>("scrollSound");
+		}
+		else
+		{
+			// 2) Si no hay en textlist, usar feature <feature supported="navigationsounds">
+			//    con <view name="all"><sound name="scroll"><path>...</path></sound>
+			const ThemeData::ThemeElement* sndElem =
+				theme->getElement("all", "scroll", "sound");
 
-                if(elem->has("scrollSound"))
-                        mScrollSound = elem->get<std::string>("scrollSound");
-        }
+			if (sndElem && sndElem->has("path"))
+			{
+				mScrollSound = sndElem->get<std::string>("path");
+			}
+		}
+	}
 
 	if(properties & ALIGNMENT)
 	{

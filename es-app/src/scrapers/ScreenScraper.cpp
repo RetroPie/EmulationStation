@@ -7,6 +7,7 @@
 #include "PlatformId.h"
 #include "Settings.h"
 #include "SystemData.h"
+#include "LocaleESHook.h"   // Puedes dejarlo aunque aquí ya no lo usamos directamente
 #include <pugixml.hpp>
 #include <cstring>
 
@@ -214,26 +215,51 @@ void ScreenScraperRequest::processGame(const pugi::xml_document& xmldoc, std::ve
 		ScraperSearchResult result;
 		ScreenScraperRequest::ScreenScraperConfig ssConfig;
 
-		std::string region = Utils::String::toLower(ssConfig.region).c_str();
-		std::string language = Utils::String::toLower(ssConfig.language).c_str();
+		// 🔹 Idioma dinámico según el ajuste "Language" (que ya viene del .ini)
+		std::string language = Settings::getInstance()->getString("Language");
+		if (language.empty())
+			language = "en";
+		language = Utils::String::toLower(language);
 
-		// Name fallback: US, WOR(LD). ( Xpath: Data/jeu[0]/noms/nom[*] ).
-		result.mdl.set("name", find_child_by_attribute_list(game.child("noms"), "nom", "region", { region, "wor", "us" , "ss", "eu", "jp" }).text().get());
+		// usamos el idioma como región base; ScreenScraper también usa "wor", "us", etc.
+		std::string region = language;
 
-		// Description fallback language: EN, WOR(LD)
-		std::string description = find_child_by_attribute_list(game.child("synopsis"), "synopsis", "langue", { language, "en", "wor" }).text().get();
+		// Name fallback: región, luego WOR(LD), US, EU, JP, SS.
+		result.mdl.set("name", find_child_by_attribute_list(
+			game.child("noms"),
+			"nom",
+			"region",
+			{ region, "wor", "us" , "eu", "jp", "ss" }
+		).text().get());
+
+		// Description fallback language: idioma actual, EN, WOR(LD)
+		std::string description = find_child_by_attribute_list(
+			game.child("synopsis"),
+			"synopsis",
+			"langue",
+			{ language, "en", "wor" }
+		).text().get();
 
 		if (!description.empty()) {
 			result.mdl.set("desc", Utils::String::replace(description, "&nbsp;", " "));
 		}
 
-		// Genre fallback language: EN. ( Xpath: Data/jeu[0]/genres/genre[*] )
-		result.mdl.set("genre", find_child_by_attribute_list(game.child("genres"), "genre", "langue", { language, "en" }).text().get());
+		// Genre fallback language: idioma actual, luego EN.
+		result.mdl.set("genre", find_child_by_attribute_list(
+			game.child("genres"),
+			"genre",
+			"langue",
+			{ language, "en" }
+		).text().get());
 		LOG(LogDebug) << "Genre: " << result.mdl.get("genre");
 
-		// Get the date proper. The API returns multiple 'date' children nodes to the 'dates' main child of 'jeu'.
-		// Date fallback: WOR(LD), US, SS, JP, EU
-		std::string _date = find_child_by_attribute_list(game.child("dates"), "date", "region", { region, "wor", "us", "ss", "jp", "eu" }).text().get();
+		// Date fallback: región, WOR(LD), US, SS, JP, EU
+		std::string _date = find_child_by_attribute_list(
+			game.child("dates"),
+			"date",
+			"region",
+			{ region, "wor", "us", "ss", "jp", "eu" }
+		).text().get();
 		LOG(LogDebug) << "Release Date (unparsed): " << _date;
 
 		// Date can be YYYY-MM-DD or just YYYY.
@@ -277,14 +303,13 @@ void ScreenScraperRequest::processGame(const pugi::xml_document& xmldoc, std::ve
 			pugi::xml_node art = pugi::xml_node(NULL);
 
 			// Do an XPath query for media[type='$media_type'], then filter by region
-			// We need to do this because any child of 'medias' has the form
-			// <media type="..." region="..." format="...">
-			// and we need to find the right media for the region.
-			pugi::xpath_node_set results = media_list.select_nodes((static_cast<std::string>("media[@type='") + ssConfig.media_name + "']").c_str());
+			pugi::xpath_node_set results = media_list.select_nodes(
+				(static_cast<std::string>("media[@type='") + ssConfig.media_name + "']").c_str()
+			);
 
 			if (results.size())
 			{
-				// Region fallback: WOR(LD), US, CUS(TOM?), JP, EU
+				// Region fallback: región actual, WOR(LD), US, CUS(TOM?), JP, EU
 				for (auto _region : std::vector<std::string>{ region, "wor", "us", "cus", "jp", "eu" })
 				{
 					if (art)
@@ -303,16 +328,15 @@ void ScreenScraperRequest::processGame(const pugi::xml_document& xmldoc, std::ve
 
 			if (art)
 			{
-				// Sending a 'softname' containing space will make the image URLs returned by the API also contain the space.
-				//  Escape any spaces in the URL here
+				// Fix espacios en la URL
 				result.imageUrl = Utils::String::replace(art.text().get(), " ", "%20");
 
-				// Get the media type returned by ScreenScraper
+				// Tipo de imagen
 				std::string media_type = art.attribute("format").value();
 				if (!media_type.empty())
 					result.imageType = "." + media_type;
 
-				// Ask for the same image, but with a smaller size, for the thumbnail displayed during scraping
+				// Thumbnail pequeño para el scraper
 				result.thumbnailUrl = result.imageUrl + "&maxheight=250";
 			}else{
 				LOG(LogDebug) << "Failed to find media XML node with name=" << ssConfig.media_name;
@@ -340,9 +364,6 @@ void ScreenScraperRequest::processList(const pugi::xml_document& xmldoc, std::ve
 	ScreenScraperRequest::ScreenScraperConfig ssConfig;
 
 	// limit the number of results per platform, not in total.
-	// otherwise if the first platform returns >= 7 games
-	// but the second platform contains the relevant game,
-	// the relevant result would not be shown.
 	for (int i = 0; game && i < MAX_SCRAPER_RESULTS; i++)
 	{
 		std::string id = game.child("id").text().get();

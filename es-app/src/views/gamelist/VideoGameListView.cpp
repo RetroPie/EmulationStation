@@ -10,6 +10,12 @@
 #ifdef _OMX_
 #include "Settings.h"
 #endif
+#include "LocaleES.h" // ← NUEVO: soporte de idioma
+
+// --- NUEVO: soporte de sonido launch ---
+#include "Sound.h"
+#include "SystemData.h"
+// --- FIN NUEVO ---
 
 VideoGameListView::VideoGameListView(Window* window, FileData* root) :
 	BasicGameListView(window, root),
@@ -29,7 +35,7 @@ VideoGameListView::VideoGameListView(Window* window, FileData* root) :
 {
 	const float padding = 0.01f;
 
-	// Create the correct type of video window
+	// Crear el tipo correcto de componente de video
 #ifdef _OMX_
 	Utils::FileSystem::removeFile(getTitlePath());
 	if (Settings::getInstance()->getBool("VideoOmxPlayer"))
@@ -45,8 +51,8 @@ VideoGameListView::VideoGameListView(Window* window, FileData* root) :
 	mList.setAlignment(TextListComponent<FileData*>::ALIGN_LEFT);
 	mList.setCursorChangedCallback([&](const CursorState& /*state*/) { updateInfoPanel(); });
 
-	// Image
-	// Default to off the screen
+	// Imagen
+	// Por defecto fuera de la pantalla
 	mImage.setOrigin(0.5f, 0.5f);
 	mImage.setPosition(2.0f, 2.0f);
 	mImage.setMaxSize(mSize.x(), mSize.y());
@@ -57,12 +63,12 @@ VideoGameListView::VideoGameListView(Window* window, FileData* root) :
 	// Video
 	mVideo->setOrigin(0.5f, 0.5f);
 	mVideo->setPosition(mSize.x() * 0.25f, mSize.y() * 0.4f);
-	mVideo->setSize(mSize.x() * (0.5f - 2*padding), mSize.y() * 0.4f);
+	mVideo->setSize(mSize.x() * (0.5f - 2 * padding), mSize.y() * 0.4f);
 	mVideo->setDefaultZIndex(30);
 	addChild(mVideo);
 
 	// Thumbnail
-	// Default to off the screen
+	// Por defecto fuera de la pantalla
 	mThumbnail.setOrigin(0.5f, 0.5f);
 	mThumbnail.setPosition(2.0f, 2.0f);
 	mThumbnail.setMaxSize(mSize.x(), mSize.y());
@@ -71,40 +77,51 @@ VideoGameListView::VideoGameListView(Window* window, FileData* root) :
 	addChild(&mThumbnail);
 
 	// Marquee
-	// Default to off the screen
+	// Por defecto fuera de la pantalla
 	mMarquee.setOrigin(0.5f, 0.5f);
 	mMarquee.setPosition(2.0f, 2.0f);
 	mMarquee.setMaxSize(mSize.x(), mSize.y());
 	mMarquee.setDefaultZIndex(35);
-	mImage.setVisible(false);
+	mMarquee.setVisible(false); // ← FIX: antes estaba mImage.setVisible(false);
 	addChild(&mMarquee);
 
-	// metadata labels + values
-	mLblRating.setText("Rating: ");
+	// --- LOCALIZACIÓN DE ETIQUETAS ---
+	LocaleES& loc = LocaleES::getInstance();
+	loc.loadFromSettings();
+
+	mLblRating.setText(loc.translate("RATING") + ": ");
 	addChild(&mLblRating);
 	addChild(&mRating);
-	mLblReleaseDate.setText("Released: ");
+
+	mLblReleaseDate.setText(loc.translate("RELEASE DATE") + ": ");
 	addChild(&mLblReleaseDate);
 	addChild(&mReleaseDate);
-	mLblDeveloper.setText("Developer: ");
+
+	mLblDeveloper.setText(loc.translate("DEVELOPER") + ": ");
 	addChild(&mLblDeveloper);
 	addChild(&mDeveloper);
-	mLblPublisher.setText("Publisher: ");
+
+	mLblPublisher.setText(loc.translate("PUBLISHER") + ": ");
 	addChild(&mLblPublisher);
 	addChild(&mPublisher);
-	mLblGenre.setText("Genre: ");
+
+	mLblGenre.setText(loc.translate("GENRE") + ": ");
 	addChild(&mLblGenre);
 	addChild(&mGenre);
-	mLblPlayers.setText("Players: ");
+
+	mLblPlayers.setText(loc.translate("PLAYERS") + ": ");
 	addChild(&mLblPlayers);
 	addChild(&mPlayers);
-	mLblLastPlayed.setText("Last played: ");
+
+	mLblLastPlayed.setText(loc.translate("LAST PLAYED") + ": ");
 	addChild(&mLblLastPlayed);
 	mLastPlayed.setDisplayRelative(true);
 	addChild(&mLastPlayed);
-	mLblPlayCount.setText("Times played: ");
+
+	mLblPlayCount.setText(loc.translate("PLAY COUNT") + ": ");
 	addChild(&mLblPlayCount);
 	addChild(&mPlayCount);
+	// --- FIN LOCALIZACIÓN DE ETIQUETAS ---
 
 	mName.setPosition(mSize.x(), mSize.y());
 	mName.setDefaultZIndex(40);
@@ -114,7 +131,7 @@ VideoGameListView::VideoGameListView(Window* window, FileData* root) :
 	addChild(&mName);
 
 	mDescContainer.setPosition(mSize.x() * padding, mSize.y() * 0.65f);
-	mDescContainer.setSize(mSize.x() * (0.50f - 2*padding), mSize.y() - mDescContainer.getPosition().y());
+	mDescContainer.setSize(mSize.x() * (0.50f - 2 * padding), mSize.y() - mDescContainer.getPosition().y());
 	mDescContainer.setAutoScroll(true);
 	mDescContainer.setDefaultZIndex(40);
 	addChild(&mDescContainer);
@@ -151,11 +168,10 @@ void VideoGameListView::onThemeChanged(const std::shared_ptr<ThemeData>& theme)
 		"md_lbl_genre", "md_lbl_players", "md_lbl_lastplayed", "md_lbl_playcount"
 	};
 
-	for(unsigned int i = 0; i < labels.size(); i++)
+	for (unsigned int i = 0; i < labels.size(); i++)
 	{
 		labels[i]->applyTheme(theme, getName(), lblElements[i], ALL);
 	}
-
 
 	initMDValues();
 	std::vector<GuiComponent*> values = getMDValues();
@@ -165,7 +181,7 @@ void VideoGameListView::onThemeChanged(const std::shared_ptr<ThemeData>& theme)
 		"md_genre", "md_players", "md_lastplayed", "md_playcount"
 	};
 
-	for(unsigned int i = 0; i < values.size(); i++)
+	for (unsigned int i = 0; i < values.size(); i++)
 	{
 		values[i]->applyTheme(theme, getName(), valElements[i], ALL ^ ThemeFlags::TEXT);
 	}
@@ -189,16 +205,17 @@ void VideoGameListView::initMDLabels()
 	const float colSize = (mSize.x() * 0.48f) / colCount;
 	const float rowPadding = 0.01f * mSize.y();
 
-	for(unsigned int i = 0; i < components.size(); i++)
+	for (unsigned int i = 0; i < components.size(); i++)
 	{
 		const unsigned int row = i % rowCount;
 		Vector3f pos(0.0f, 0.0f, 0.0f);
-		if(row == 0)
+		if (row == 0)
 		{
 			pos = start + Vector3f(colSize * (i / rowCount), 0, 0);
-		}else{
-			// work from the last component
-			GuiComponent* lc = components[i-1];
+		}
+		else {
+			// trabajar desde el último componente
+			GuiComponent* lc = components[i - 1];
 			pos = lc->getPosition() + Vector3f(0, lc->getSize().y() + rowPadding, 0);
 		}
 
@@ -226,7 +243,7 @@ void VideoGameListView::initMDValues()
 	float bottom = 0.0f;
 
 	const float colSize = (mSize.x() * 0.48f) / 2;
-	for(unsigned int i = 0; i < labels.size(); i++)
+	for (unsigned int i = 0; i < labels.size(); i++)
 	{
 		const float heightDiff = (labels[i]->getSize().y() - values[i]->getSize().y()) / 2;
 		values[i]->setPosition(labels[i]->getPosition() + Vector3f(labels[i]->getSize().x(), heightDiff, 0));
@@ -234,7 +251,7 @@ void VideoGameListView::initMDValues()
 		values[i]->setDefaultZIndex(40);
 
 		float testBot = values[i]->getPosition().y() + values[i]->getSize().y();
-		if(testBot > bottom)
+		if (testBot > bottom)
 			bottom = testBot;
 	}
 
@@ -242,14 +259,12 @@ void VideoGameListView::initMDValues()
 	mDescContainer.setSize(mDescContainer.getSize().x(), mSize.y() - mDescContainer.getPosition().y());
 }
 
-
-
 void VideoGameListView::updateInfoPanel()
 {
 	FileData* file = (mList.size() == 0 || mList.isScrolling()) ? NULL : mList.getSelected();
 
 	bool fadingOut;
-	if(file == NULL)
+	if (file == NULL)
 	{
 		mVideo->setVideo("");
 		mVideo->setImage("");
@@ -258,7 +273,8 @@ void VideoGameListView::updateInfoPanel()
 		//mDescription.setText("");
 		fadingOut = true;
 
-	}else{
+	}
+	else {
 		if (!mVideo->setVideo(file->getVideoPath()))
 		{
 			mVideo->setDefaultVideo();
@@ -281,7 +297,7 @@ void VideoGameListView::updateInfoPanel()
 		mPlayers.setValue(file->metadata.get("players"));
 		mName.setValue(file->metadata.get("name"));
 
-		if(file->getType() == GAME)
+		if (file->getType() == GAME)
 		{
 			mLastPlayed.setValue(file->metadata.get("lastplayed"));
 			mPlayCount.setValue(file->metadata.get("playcount"));
@@ -300,19 +316,19 @@ void VideoGameListView::updateInfoPanel()
 	std::vector<TextComponent*> labels = getMDLabels();
 	comps.insert(comps.cend(), labels.cbegin(), labels.cend());
 
-	for(auto it = comps.cbegin(); it != comps.cend(); it++)
+	for (auto it = comps.cbegin(); it != comps.cend(); it++)
 	{
 		GuiComponent* comp = *it;
-		// an animation is playing
-		//   then animate if reverse != fadingOut
-		// an animation is not playing
-		//   then animate if opacity != our target opacity
-		if((comp->isAnimationPlaying(0) && comp->isAnimationReversed(0) != fadingOut) ||
+		// si hay una animación corriendo:
+		//   animar si reverse != fadingOut
+		// si no hay animación:
+		//   animar si la opacidad actual no coincide con el objetivo
+		if ((comp->isAnimationPlaying(0) && comp->isAnimationReversed(0) != fadingOut) ||
 			(!comp->isAnimationPlaying(0) && comp->getOpacity() != (fadingOut ? 0 : 255)))
 		{
 			auto func = [comp](float t)
 			{
-				comp->setOpacity((unsigned char)(Math::lerp(0.0f, 1.0f, t)*255));
+				comp->setOpacity((unsigned char)(Math::lerp(0.0f, 1.0f, t) * 255));
 			};
 			comp->setAnimation(new LambdaAnimation(func, 150), 0, nullptr, fadingOut);
 		}
@@ -321,37 +337,65 @@ void VideoGameListView::updateInfoPanel()
 
 void VideoGameListView::launch(FileData* game)
 {
-	float screenWidth = (float) Renderer::getScreenWidth();
-	float screenHeight = (float) Renderer::getScreenHeight();
+	// --- NUEVO: sonido de "launch" compatible con Batocera ---
+	if (game != nullptr)
+	{
+		SystemData* sys = game->getSystem();
+		if (sys != nullptr)
+		{
+			const std::shared_ptr<ThemeData>& theme = sys->getTheme();
+			if (theme)
+			{
+				// Prioridad: <feature supported="navigationsounds"><view name="all"><sound name="launch">
+				const ThemeData::ThemeElement* launchElem =
+					theme->getElement("all", "launch", "sound");
+
+				// Fallback opcional: por si alguien lo pone en la vista "system"
+				if (!launchElem)
+					launchElem = theme->getElement("system", "launch", "sound");
+
+				if (launchElem && launchElem->has("path"))
+				{
+					std::string path = launchElem->get<std::string>("path");
+					if (!path.empty())
+						Sound::get(path)->play();
+				}
+			}
+		}
+	}
+	// --- FIN NUEVO ---
+
+	float screenWidth = (float)Renderer::getScreenWidth();
+	float screenHeight = (float)Renderer::getScreenHeight();
 
 	Vector3f target(screenWidth / 2.0f, screenHeight / 2.0f, 0);
 
-	if(mMarquee.hasImage() &&
+	if (mMarquee.hasImage() &&
 		(mMarquee.getPosition().x() < screenWidth && mMarquee.getPosition().x() > 0.0f &&
-		 mMarquee.getPosition().y() < screenHeight && mMarquee.getPosition().y() > 0.0f))
+			mMarquee.getPosition().y() < screenHeight && mMarquee.getPosition().y() > 0.0f))
 	{
 		target = Vector3f(mMarquee.getCenter().x(), mMarquee.getCenter().y(), 0);
 	}
-	else if(mThumbnail.hasImage() &&
+	else if (mThumbnail.hasImage() &&
 		(mThumbnail.getPosition().x() < screenWidth && mThumbnail.getPosition().x() > 2.0f &&
-		 mThumbnail.getPosition().y() < screenHeight && mThumbnail.getPosition().y() > 2.0f))
+			mThumbnail.getPosition().y() < screenHeight && mThumbnail.getPosition().y() > 2.0f))
 	{
 		target = Vector3f(mThumbnail.getCenter().x(), mThumbnail.getCenter().y(), 0);
 	}
-	else if(mImage.hasImage() &&
+	else if (mImage.hasImage() &&
 		(mImage.getPosition().x() < screenWidth && mImage.getPosition().x() > 2.0f &&
-		 mImage.getPosition().y() < screenHeight && mImage.getPosition().y() > 2.0f))
+			mImage.getPosition().y() < screenHeight && mImage.getPosition().y() > 2.0f))
 	{
 		target = Vector3f(mImage.getCenter().x(), mImage.getCenter().y(), 0);
 	}
-	else if(mHeaderImage.hasImage() &&
+	else if (mHeaderImage.hasImage() &&
 		(mHeaderImage.getPosition().x() < screenWidth && mHeaderImage.getPosition().x() > 0.0f &&
-		 mHeaderImage.getPosition().y() < screenHeight && mHeaderImage.getPosition().y() > 0.0f))
+			mHeaderImage.getPosition().y() < screenHeight && mHeaderImage.getPosition().y() > 0.0f))
 	{
 		target = Vector3f(mHeaderImage.getCenter().x(), mHeaderImage.getCenter().y(), 0);
 	}
-	else if(mVideo->getPosition().x() < screenWidth && mVideo->getPosition().x() > 0.0f &&
-		 mVideo->getPosition().y() < screenHeight && mVideo->getPosition().y() > 0.0f)
+	else if (mVideo->getPosition().x() < screenWidth && mVideo->getPosition().x() > 0.0f &&
+		mVideo->getPosition().y() < screenHeight && mVideo->getPosition().y() > 0.0f)
 	{
 		target = Vector3f(mVideo->getCenter().x(), mVideo->getCenter().y(), 0);
 	}

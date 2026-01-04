@@ -28,6 +28,12 @@
 
 #include <FreeImage.h>
 
+// NUEVO: sistema de localización ES-X
+#include "LocaleES.h"
+
+// NUEVO: música de fondo ES-X
+#include "audio/BackgroundMusicManager.h"
+
 bool scrape_cmdline = false;
 
 bool parseArgs(int argc, char* argv[])
@@ -173,10 +179,6 @@ bool parseArgs(int argc, char* argv[])
 		else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0)
 		{
 #ifdef WIN32
-			// This is a bit of a hack, but otherwise output will go to nowhere
-			// when the application is compiled with the "WINDOWS" subsystem (which we usually are).
-			// If you're an experienced Windows programmer and know how to do this
-			// the right way, please submit a pull request!
 			AttachConsole(ATTACH_PARENT_PROCESS);
 			freopen("CONOUT$", "wb", stdout);
 #endif
@@ -231,7 +233,7 @@ bool parseArgs(int argc, char* argv[])
 				"setting is changed via EmulationStation UI.\n\n"
 				"Please refer to the online documentation for additional information:\n"
 				"https://retropie.org.uk/docs/EmulationStation/\n";
-			return false; //exit after printing help
+			return false;
 		}
 	}
 
@@ -240,7 +242,6 @@ bool parseArgs(int argc, char* argv[])
 
 bool verifyHomeFolderExists()
 {
-	//make sure the config directory exists
 	std::string home = Utils::FileSystem::getHomePath();
 	std::string configDir = home + "/.emulationstation";
 	if(!Utils::FileSystem::exists(configDir))
@@ -257,7 +258,6 @@ bool verifyHomeFolderExists()
 	return true;
 }
 
-// Returns true if everything is OK,
 bool loadSystemConfigFile(Window* window, const char** errorString)
 {
 	*errorString = NULL;
@@ -283,7 +283,6 @@ bool loadSystemConfigFile(Window* window, const char** errorString)
 	return true;
 }
 
-//called on exit, assuming we get far enough to have the log initialized
 void onExit()
 {
 	Log::close();
@@ -296,54 +295,35 @@ int main(int argc, char* argv[])
 	if(!parseArgs(argc, argv))
 		return 0;
 
-	// only show the console on Windows if HideConsole is false
 #ifdef WIN32
-	// MSVC has a "SubSystem" option, with two primary options: "WINDOWS" and "CONSOLE".
-	// In "WINDOWS" mode, no console is automatically created for us.  This is good,
-	// because we can choose to only create the console window if the user explicitly
-	// asks for it, preventing it from flashing open and then closing.
-	// In "CONSOLE" mode, a console is always automatically created for us before we
-	// enter main. In this case, we can only hide the console after the fact, which
-	// will leave a brief flash.
-	// TL;DR: You should compile ES under the "WINDOWS" subsystem.
-	// I have no idea how this works with non-MSVC compilers.
 	if(!Settings::getInstance()->getBool("HideConsole"))
 	{
-		// we want to show the console
-		// if we're compiled in "CONSOLE" mode, this is already done.
-		// if we're compiled in "WINDOWS" mode, no console is created for us automatically;
-		// the user asked for one, so make one and then hook stdin/stdout/sterr up to it
-		if(AllocConsole()) // should only pass in "WINDOWS" mode
+		if(AllocConsole())
 		{
 			freopen("CONIN$", "r", stdin);
 			freopen("CONOUT$", "wb", stdout);
 			freopen("CONOUT$", "wb", stderr);
 		}
 	}else{
-		// we want to hide the console
-		// if we're compiled with the "WINDOWS" subsystem, this is already done.
-		// if we're compiled with the "CONSOLE" subsystem, a console is already created;
-		// it'll flash open, but we hide it nearly immediately
-		if(GetConsoleWindow()) // should only pass in "CONSOLE" mode
+		if(GetConsoleWindow())
 			ShowWindow(GetConsoleWindow(), SW_HIDE);
 	}
 #endif
 
-	// call this ONLY when linking with FreeImage as a static library
 #ifdef FREEIMAGE_LIB
 	FreeImage_Initialise();
 #endif
 
-	//if ~/.emulationstation doesn't exist and cannot be created, bail
 	if(!verifyHomeFolderExists())
 		return 1;
 
-	//start the logger
 	Log::init();
 	Log::open();
 	LOG(LogInfo) << "EmulationStation - v" << PROGRAM_VERSION_STRING << ", built " << PROGRAM_BUILT_STRING;
 
-	//always close the log on exit
+	// 🔤 NUEVO: inicializar localización según Settings::Language
+	LocaleES::getInstance().loadFromSettings();
+
 	atexit(&onExit);
 
 	Window window;
@@ -374,7 +354,6 @@ int main(int argc, char* argv[])
 	const char* errorMsg = NULL;
 	if(!loadSystemConfigFile(splashScreen ? &window : nullptr, &errorMsg))
 	{
-		// something went terribly wrong
 		if(errorMsg == NULL)
 		{
 			LOG(LogError) << "Unknown error occured while parsing system config file.";
@@ -383,7 +362,6 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 
-		// we can't handle es_systems.cfg file problems inside ES itself, so display the error message then quit
 		window.pushGui(new GuiMsgBox(&window,
 			errorMsg,
 			"QUIT", [] {
@@ -393,14 +371,11 @@ int main(int argc, char* argv[])
 			}));
 	}
 
-	//run the command line scraper then quit
 	if(scrape_cmdline)
 	{
 		return run_scraper_cmdline();
 	}
 
-	// preload what we can right away instead of waiting for the user to select it
-	// this makes for no delays when accessing content, but a longer startup time
 	ViewController::get()->preload();
 
 	if(splashScreen)
@@ -408,7 +383,9 @@ int main(int argc, char* argv[])
 
 	InputManager::getInstance()->init();
 
-	//choose which GUI to open depending on if an input configuration already exists
+	// 🔊 NUEVO: inicializar música de fondo ES-X (si está habilitada)
+	BackgroundMusicManager::getInstance().init();
+
 	if(errorMsg == NULL)
 	{
 		if(Utils::FileSystem::exists(InputManager::getConfigPath()) && InputManager::getInstance()->getNumConfiguredDevices() > 0)
@@ -439,25 +416,20 @@ int main(int argc, char* argv[])
 					running = false;
 			} while(SDL_PollEvent(&event));
 
-			// triggered if exiting from SDL_WaitEvent due to event
 			if (ps_standby)
-				// show as if continuing from last event
 				lastTime = SDL_GetTicks();
 
-			// reset counter
 			ps_time = SDL_GetTicks();
 		}
 		else if (ps_standby)
 		{
-			// If exitting SDL_WaitEventTimeout due to timeout. Trail considering
-			// timeout as an event
 			ps_time = SDL_GetTicks();
 		}
 
 		if(window.isSleeping())
 		{
 			lastTime = SDL_GetTicks();
-			SDL_Delay(1); // this doesn't need to be accurate, we're just giving up our CPU time until something wakes us up
+			SDL_Delay(1);
 			continue;
 		}
 
@@ -465,11 +437,14 @@ int main(int argc, char* argv[])
 		int deltaTime = curTime - lastTime;
 		lastTime = curTime;
 
-		// cap deltaTime if it ever goes negative
 		if(deltaTime < 0)
 			deltaTime = 1000;
 
 		window.update(deltaTime);
+
+		// ✅ BGM: procesar “resume con delay” al volver del juego
+		BackgroundMusicManager::getInstance().update(deltaTime);
+
 		window.render();
 		Renderer::swapBuffers();
 
@@ -480,13 +455,16 @@ int main(int argc, char* argv[])
 		delete window.peekGui();
 
 	InputManager::getInstance()->deinit();
+
+	// 🔊 NUEVO: apagar música antes de cerrar ventana / audio
+	BackgroundMusicManager::getInstance().shutdown();
+
 	window.deinit();
 
 	MameNames::deinit();
 	CollectionSystemManager::deinit();
 	SystemData::deleteSystems();
 
-	// call this ONLY when linking with FreeImage as a static library
 #ifdef FREEIMAGE_LIB
 	FreeImage_DeInitialise();
 #endif

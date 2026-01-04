@@ -6,15 +6,33 @@
 #include "resources/TextureResource.h"
 #include "Log.h"
 #include "Scripting.h"
+
 #include <algorithm>
 #include <iomanip>
+#include <ctime>
+#include <sstream>
 
 #ifdef WIN32
 #include <SDL_events.h>
 #endif
 
-Window::Window() : mNormalizeNextUpdate(false), mFrameTimeElapsed(0), mFrameCountElapsed(0), mAverageDeltaTime(10),
-	mAllowSleep(true), mSleeping(false), mTimeSinceLastInput(0), mScreenSaver(NULL), mRenderScreenSaver(false), mInfoPopup(NULL)
+Window::Window()
+	: mNormalizeNextUpdate(false)
+	, mFrameTimeElapsed(0)
+	, mFrameCountElapsed(0)
+	, mAverageDeltaTime(10)
+	, mAllowSleep(true)
+	, mSleeping(false)
+	, mTimeSinceLastInput(0)
+	, mScreenSaver(NULL)
+	, mRenderScreenSaver(false)
+	, mInfoPopup(NULL)
+	, mRenderedHelpPrompts(false)
+	// Clock
+	, mClockTimeAccum(0)
+	, mClockLastText("")
+	, mClockTextCache(nullptr)
+	, mClockOutlineCache(nullptr)
 {
 	mHelp = new HelpComponent(this);
 	mBackgroundOverlay = new ImageComponent(this);
@@ -25,7 +43,7 @@ Window::~Window()
 	delete mBackgroundOverlay;
 
 	// delete all our GUIs
-	while(peekGui())
+	while (peekGui())
 		delete peekGui();
 
 	delete mHelp;
@@ -44,13 +62,13 @@ void Window::pushGui(GuiComponent* gui)
 
 void Window::removeGui(GuiComponent* gui)
 {
-	for(auto i = mGuiStack.cbegin(); i != mGuiStack.cend(); i++)
+	for (auto i = mGuiStack.cbegin(); i != mGuiStack.cend(); i++)
 	{
-		if(*i == gui)
+		if (*i == gui)
 		{
 			i = mGuiStack.erase(i);
 
-			if(i == mGuiStack.cend() && mGuiStack.size()) // we just popped the stack and the stack is not empty
+			if (i == mGuiStack.cend() && mGuiStack.size()) // we just popped the stack and the stack is not empty
 			{
 				mGuiStack.back()->updateHelpPrompts();
 				mGuiStack.back()->topWindow(true);
@@ -63,7 +81,7 @@ void Window::removeGui(GuiComponent* gui)
 
 GuiComponent* Window::peekGui()
 {
-	if(mGuiStack.size() == 0)
+	if (mGuiStack.size() == 0)
 		return NULL;
 
 	return mGuiStack.back();
@@ -71,7 +89,7 @@ GuiComponent* Window::peekGui()
 
 bool Window::init()
 {
-	if(!Renderer::init())
+	if (!Renderer::init())
 	{
 		LOG(LogError) << "Renderer failed to initialize!";
 		return false;
@@ -79,8 +97,8 @@ bool Window::init()
 
 	ResourceManager::getInstance()->reloadAll();
 
-	//keep a reference to the default fonts, so they don't keep getting destroyed/recreated
-	if(mDefaultFonts.empty())
+	// keep a reference to the default fonts, so they don't keep getting destroyed/recreated
+	if (mDefaultFonts.empty())
 	{
 		mDefaultFonts.push_back(Font::get(FONT_SIZE_SMALL));
 		mDefaultFonts.push_back(Font::get(FONT_SIZE_MEDIUM));
@@ -91,8 +109,14 @@ bool Window::init()
 	mBackgroundOverlay->setResize((float)Renderer::getScreenWidth(), (float)Renderer::getScreenHeight());
 
 	// update our help because font sizes probably changed
-	if(peekGui())
+	if (peekGui())
 		peekGui()->updateHelpPrompts();
+
+	// Reset clock cache on init (safe)
+	mClockTimeAccum = 0;
+	mClockLastText.clear();
+	mClockTextCache.reset();
+	mClockOutlineCache.reset();
 
 	return true;
 }
@@ -100,7 +124,7 @@ bool Window::init()
 void Window::deinit()
 {
 	// Hide all GUI elements on uninitialisation - this disable
-	for(auto i = mGuiStack.cbegin(); i != mGuiStack.cend(); i++)
+	for (auto i = mGuiStack.cbegin(); i != mGuiStack.cend(); i++)
 	{
 		(*i)->onHide();
 	}
@@ -110,7 +134,7 @@ void Window::deinit()
 
 void Window::textInput(const char* text)
 {
-	if(peekGui())
+	if (peekGui())
 		peekGui()->textInput(text);
 }
 
@@ -159,20 +183,20 @@ void Window::input(InputConfig* config, Input input)
 
 void Window::update(int deltaTime)
 {
-	if(mNormalizeNextUpdate)
+	if (mNormalizeNextUpdate)
 	{
 		mNormalizeNextUpdate = false;
-		if(deltaTime > mAverageDeltaTime)
+		if (deltaTime > mAverageDeltaTime)
 			deltaTime = mAverageDeltaTime;
 	}
 
 	mFrameTimeElapsed += deltaTime;
 	mFrameCountElapsed++;
-	if(mFrameTimeElapsed > 500)
+	if (mFrameTimeElapsed > 500)
 	{
 		mAverageDeltaTime = mFrameTimeElapsed / mFrameCountElapsed;
 
-		if(Settings::getInstance()->getBool("DrawFramerate"))
+		if (Settings::getInstance()->getBool("DrawFramerate"))
 		{
 			std::stringstream ss;
 
@@ -186,7 +210,7 @@ void Window::update(int deltaTime)
 			float fontVramUsageMb = Font::getTotalMemUsage() / 1000.0f / 1000.0f;
 
 			ss << "\nFont VRAM: " << fontVramUsageMb << " Tex VRAM: " << textureVramUsageMb <<
-				  " Tex Max: " << textureTotalUsageMb;
+				" Tex Max: " << textureTotalUsageMb;
 			mFrameDataText = std::unique_ptr<TextCache>(mDefaultFonts.at(1)->buildTextCache(ss.str(), 50.f, 50.f, 0xFF00FFFF));
 		}
 
@@ -196,12 +220,57 @@ void Window::update(int deltaTime)
 
 	mTimeSinceLastInput += deltaTime;
 
-	if(peekGui())
+	if (peekGui())
 		peekGui()->update(deltaTime);
 
 	// Update the screensaver
 	if (mScreenSaver)
 		mScreenSaver->update(deltaTime);
+
+	// ============================================================
+	// Clock overlay (safe) - update once per second
+	// Controlled by Settings bool: "ShowClock"
+	// NOTE: no ThemeData/SystemData access from es-core.
+	// ============================================================
+	const bool showClock = Settings::getInstance()->getBool("ShowClock");
+	if (showClock)
+	{
+		mClockTimeAccum += deltaTime;
+		if (mClockTimeAccum >= 1000 || mClockTextCache == nullptr)
+		{
+			mClockTimeAccum = 0;
+
+			// Build HH:MM (24h)
+			std::time_t t = std::time(nullptr);
+			std::tm tmNow;
+#if defined(_WIN32)
+			localtime_s(&tmNow, &t);
+#else
+			localtime_r(&t, &tmNow);
+#endif
+			std::ostringstream os;
+			os << std::put_time(&tmNow, "%H:%M");
+			const std::string newText = os.str();
+
+			if (newText != mClockLastText)
+			{
+				mClockLastText = newText;
+
+				// Border is ALWAYS black (design decision)
+				mClockOutlineCache.reset(mDefaultFonts.at(1)->buildTextCache(mClockLastText, 0.f, 0.f, 0x000000FF));
+				// Main text (for now white; later can be overridden by style passed from es-app)
+				mClockTextCache.reset(mDefaultFonts.at(1)->buildTextCache(mClockLastText, 0.f, 0.f, 0xFFFFFFFF));
+			}
+		}
+	}
+	else
+	{
+		// If disabled, free cache
+		mClockTimeAccum = 0;
+		mClockLastText.clear();
+		mClockTextCache.reset();
+		mClockOutlineCache.reset();
+	}
 }
 
 void Window::render()
@@ -211,45 +280,76 @@ void Window::render()
 	mRenderedHelpPrompts = false;
 
 	// draw only bottom and top of GuiStack (if they are different)
-	if(mGuiStack.size())
+	if (mGuiStack.size())
 	{
 		auto& bottom = mGuiStack.front();
 		auto& top = mGuiStack.back();
 
 		bottom->render(transform);
-		if(bottom != top)
+		if (bottom != top)
 		{
 			mBackgroundOverlay->render(transform);
 			top->render(transform);
 		}
 	}
 
-	if(!mRenderedHelpPrompts)
+	if (!mRenderedHelpPrompts)
 		mHelp->render(transform);
 
-	if(Settings::getInstance()->getBool("DrawFramerate") && mFrameDataText)
+	if (Settings::getInstance()->getBool("DrawFramerate") && mFrameDataText)
 	{
 		Renderer::setMatrix(Transform4x4f::Identity());
 		mDefaultFonts.at(1)->renderTextCache(mFrameDataText.get());
 	}
 
 	unsigned int screensaverTime = (unsigned int)Settings::getInstance()->getInt("ScreenSaverTime");
-	if(mTimeSinceLastInput >= screensaverTime && screensaverTime != 0)
+	if (mTimeSinceLastInput >= screensaverTime && screensaverTime != 0)
 		startScreenSaver();
 
 	// Always call the screensaver render function regardless of whether the screensaver is active
 	// or not because it may perform a fade on transition
 	renderScreenSaver();
 
-	if(mInfoPopup)
+	// ============================================================
+	// Global overlays (ES-DE style)
+	// - Clock only when ShowClock = true
+	// - Hide overlays when screensaver active
+	// ============================================================
+	const bool showClock = Settings::getInstance()->getBool("ShowClock");
+	if (showClock && !mRenderScreenSaver && mClockTextCache && mClockOutlineCache)
+	{
+		// Top-right placement with padding
+		const float pad = 20.0f;
+		const float x = Math::round((float)Renderer::getScreenWidth() - mClockTextCache->metrics.size.x() - pad);
+		const float y = Math::round(pad);
+
+		// 1px outline (4 directions) using the outline cache (black)
+		static const int off[4][2] = { {-1,0}, {1,0}, {0,-1}, {0,1} };
+		for (int i = 0; i < 4; i++)
+		{
+			Transform4x4f t = Transform4x4f::Identity();
+			t = t.translate(Vector3f(x + (float)off[i][0], y + (float)off[i][1], 0.0f));
+			Renderer::setMatrix(t);
+			mDefaultFonts.at(1)->renderTextCache(mClockOutlineCache.get());
+		}
+
+		// Main text
+		Transform4x4f t = Transform4x4f::Identity();
+		t = t.translate(Vector3f(x, y, 0.0f));
+		Renderer::setMatrix(t);
+		mDefaultFonts.at(1)->renderTextCache(mClockTextCache.get());
+	}
+
+	// Info popup always on top
+	if (mInfoPopup)
 	{
 		mInfoPopup->render(transform);
 	}
 
-	if(mTimeSinceLastInput >= screensaverTime && screensaverTime != 0)
+	if (mTimeSinceLastInput >= screensaverTime && screensaverTime != 0)
 	{
 		unsigned int systemSleepTime = (unsigned int)Settings::getInstance()->getInt("SystemSleepTime");
-		if(!isProcessing() && mAllowSleep && systemSleepTime != 0 && mTimeSinceLastInput >= systemSleepTime) {
+		if (!isProcessing() && mAllowSleep && systemSleepTime != 0 && mTimeSinceLastInput >= systemSleepTime) {
 			mSleeping = true;
 			onSleep();
 		}
@@ -331,29 +431,31 @@ void Window::setHelpPrompts(const std::vector<HelpPrompt>& prompts, const HelpSt
 
 	std::map<std::string, bool> inputSeenMap;
 	std::map<std::string, int> mappedToSeenMap;
-	for(auto it = prompts.cbegin(); it != prompts.cend(); it++)
+	for (auto it = prompts.cbegin(); it != prompts.cend(); it++)
 	{
 		// only add it if the same icon hasn't already been added
-		if(inputSeenMap.emplace(it->first, true).second)
+		if (inputSeenMap.emplace(it->first, true).second)
 		{
 			// this symbol hasn't been seen yet, what about the action name?
 			auto mappedTo = mappedToSeenMap.find(it->second);
-			if(mappedTo != mappedToSeenMap.cend())
+			if (mappedTo != mappedToSeenMap.cend())
 			{
 				// yes, it has!
 
 				// can we combine? (dpad only)
-				if((it->first == "up/down" && addPrompts.at(mappedTo->second).first != "left/right") ||
+				if ((it->first == "up/down" && addPrompts.at(mappedTo->second).first != "left/right") ||
 					(it->first == "left/right" && addPrompts.at(mappedTo->second).first != "up/down"))
 				{
 					// yes!
 					addPrompts.at(mappedTo->second).first = "up/down/left/right";
 					// don't need to add this to addPrompts since we just merged
-				}else{
+				}
+				else {
 					// no, we can't combine!
 					addPrompts.push_back(*it);
 				}
-			}else{
+			}
+			else {
 				// no, it hasn't!
 				mappedToSeenMap.emplace(it->second, (int)addPrompts.size());
 				addPrompts.push_back(*it);
@@ -376,11 +478,11 @@ void Window::setHelpPrompts(const std::vector<HelpPrompt>& prompts, const HelpSt
 		int i = 0;
 		int aVal = 0;
 		int bVal = 0;
-		while(map[i] != NULL)
+		while (map[i] != NULL)
 		{
-			if(a.first == map[i])
+			if (a.first == map[i])
 				aVal = i;
-			if(b.first == map[i])
+			if (b.first == map[i])
 				bVal = i;
 			i++;
 		}
@@ -390,7 +492,6 @@ void Window::setHelpPrompts(const std::vector<HelpPrompt>& prompts, const HelpSt
 
 	mHelp->setPrompts(addPrompts);
 }
-
 
 void Window::onSleep()
 {
@@ -424,7 +525,7 @@ void Window::startScreenSaver(SystemData* system)
 	{
 		Scripting::fireEvent("screensaver-start");
 		// Tell the GUI components the screensaver is starting
-		for(auto i = mGuiStack.cbegin(); i != mGuiStack.cend(); i++)
+		for (auto i = mGuiStack.cbegin(); i != mGuiStack.cend(); i++)
 			(*i)->onScreenSaverActivate();
 
 		mScreenSaver->startScreenSaver(system);
@@ -441,7 +542,7 @@ bool Window::cancelScreenSaver()
 		Scripting::fireEvent("screensaver-stop");
 
 		// Tell the GUI components the screensaver has stopped
-		for(auto i = mGuiStack.cbegin(); i != mGuiStack.cend(); i++)
+		for (auto i = mGuiStack.cbegin(); i != mGuiStack.cend(); i++)
 			(*i)->onScreenSaverDeactivate();
 
 		return true;

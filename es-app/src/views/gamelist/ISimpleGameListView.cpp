@@ -7,11 +7,18 @@
 #include "Settings.h"
 #include "Sound.h"
 #include "SystemData.h"
+#include "LocaleES.h"         // soporte de idioma
+#include "NavigationSounds.h" // helper central para navigationsounds
 
-ISimpleGameListView::ISimpleGameListView(Window* window, FileData* root) : IGameListView(window, root),
+ISimpleGameListView::ISimpleGameListView(Window* window, FileData* root) 
+	: IGameListView(window, root),
 	mHeaderText(window), mHeaderImage(window), mBackground(window)
 {
-	mHeaderText.setText("Logo Text");
+	// Localización del texto por defecto del encabezado
+	LocaleES& loc = LocaleES::getInstance();
+	loc.loadFromSettings();
+
+	mHeaderText.setText(loc.translate("LOGO TEXT")); // ← Traducción desde .ini
 	mHeaderText.setSize(mSize.x(), 0);
 	mHeaderText.setPosition(0, 0);
 	mHeaderText.setHorizontalAlignment(ALIGN_CENTER);
@@ -51,11 +58,14 @@ void ISimpleGameListView::onThemeChanged(const std::shared_ptr<ThemeData>& theme
 		addChild(extra);
 	}
 
-	if(mHeaderImage.hasImage())
+	// Mostrar imagen si está disponible, sino texto
+	if (mHeaderImage.hasImage())
 	{
 		removeChild(&mHeaderText);
 		addChild(&mHeaderImage);
-	}else{
+	}
+	else
+	{
 		addChild(&mHeaderText);
 		removeChild(&mHeaderImage);
 	}
@@ -63,8 +73,6 @@ void ISimpleGameListView::onThemeChanged(const std::shared_ptr<ThemeData>& theme
 
 void ISimpleGameListView::onFileChanged(FileData* /*file*/, FileChangeType /*change*/)
 {
-	// we could be tricky here to be efficient;
-	// but this shouldn't happen very often so we'll just always repopulate
 	FileData* cursor = getCursor();
 	if (!cursor->isPlaceHolder()) {
 		populateList(cursor->getParent()->getChildrenListToDisplay());
@@ -79,36 +87,82 @@ void ISimpleGameListView::onFileChanged(FileData* /*file*/, FileChangeType /*cha
 
 bool ISimpleGameListView::input(InputConfig* config, Input input)
 {
-	if(input.value != 0)
+	if (input.value != 0)
 	{
+		// LANZAR JUEGO / ENTRAR A CARPETA
 		if(config->isMappedTo("a", input))
 		{
 			FileData* cursor = getCursor();
 			if(cursor->getType() == GAME)
 			{
-				Sound::getFromTheme(getTheme(), getName(), "launch")->play();
+				// SONIDO DE LAUNCH (compatible con navigationsounds → "launch")
+				std::shared_ptr<Sound> launchSnd;
+
+				SystemData* sys = mRoot ? mRoot->getSystem() : nullptr;
+				if (sys != nullptr)
+				{
+					const std::shared_ptr<ThemeData>& theme = sys->getTheme();
+					if (theme)
+					{
+						// 1) esquema nuevo
+						launchSnd = NavigationSounds::getFromTheme(theme, "launch");
+					}
+				}
+
+				// 2) fallback clásico (por si acaso)
+				if (!launchSnd)
+					launchSnd = Sound::getFromTheme(getTheme(), getName(), "launch");
+
+				if (launchSnd)
+					launchSnd->play();
+
 				launch(cursor);
-			}else{
-				// it's a folder
+			}
+			else
+			{
 				if(cursor->getChildren().size() > 0)
 				{
 					mCursorStack.push(cursor);
 					populateList(cursor->getChildrenListToDisplay());
-					FileData* cursor = getCursor();
-					setCursor(cursor);
+					setCursor(getCursor());
 				}
 			}
 
 			return true;
-		}else if(config->isMappedTo("b", input))
+		}
+		// VOLVER (dentro de carpetas o a SystemView)
+		else if(config->isMappedTo("b", input))
 		{
+			// 🎵 SONIDO DE BACK SIEMPRE (carpeta o salida a SystemView)
+			std::shared_ptr<Sound> backSnd;
+			SystemData* sys = mRoot ? mRoot->getSystem() : nullptr;
+			if (sys != nullptr)
+			{
+				const std::shared_ptr<ThemeData>& theme = sys->getTheme();
+				if (theme)
+				{
+					// 1) esquema nuevo: navigationsounds → "back"
+					backSnd = NavigationSounds::getFromTheme(theme, "back");
+				}
+			}
+			// 2) fallback clásico (por vista basic/detailed/video)
+			if (!backSnd)
+				backSnd = Sound::getFromTheme(getTheme(), getName(), "back");
+
+			if (backSnd)
+				backSnd->play();
+
+			// Lógica de navegación
 			if(mCursorStack.size())
 			{
+				// Volver una carpeta atrás en la misma lista
 				populateList(mCursorStack.top()->getParent()->getChildrenListToDisplay());
 				setCursor(mCursorStack.top());
 				mCursorStack.pop();
-				Sound::getFromTheme(getTheme(), getName(), "back")->play();
-			}else{
+			}
+			else
+			{
+				// Salir a SystemView
 				onFocusLost();
 				SystemData* systemToView = getCursor()->getSystem();
 				if (systemToView->isCollection())
@@ -119,27 +173,61 @@ bool ISimpleGameListView::input(InputConfig* config, Input input)
 			}
 
 			return true;
-		}else if(config->isMappedLike(getQuickSystemSelectRightButton(), input))
+		}
+		// QUICK SYSTEM SELECT → LB/RB (sonido quicksysselect)
+		else if(config->isMappedLike(getQuickSystemSelectRightButton(), input))
 		{
 			if(Settings::getInstance()->getBool("QuickSystemSelect"))
 			{
+				// sonido quicksysselect (Batocera-like)
+				SystemData* sys = mRoot ? mRoot->getSystem() : nullptr;
+				if (sys != nullptr)
+				{
+					const std::shared_ptr<ThemeData>& theme = sys->getTheme();
+					if (theme)
+					{
+						auto snd = NavigationSounds::getFromTheme(theme, "quicksysselect");
+						// fallback opcional al browse
+						if (!snd)
+							snd = NavigationSounds::getFromTheme(theme, "systembrowse");
+						if (snd)
+							snd->play();
+					}
+				}
+
 				onFocusLost();
 				ViewController::get()->goToNextGameList();
 				return true;
 			}
-		}else if(config->isMappedLike(getQuickSystemSelectLeftButton(), input))
+		}
+		else if(config->isMappedLike(getQuickSystemSelectLeftButton(), input))
 		{
 			if(Settings::getInstance()->getBool("QuickSystemSelect"))
 			{
+				SystemData* sys = mRoot ? mRoot->getSystem() : nullptr;
+				if (sys != nullptr)
+				{
+					const std::shared_ptr<ThemeData>& theme = sys->getTheme();
+					if (theme)
+					{
+						auto snd = NavigationSounds::getFromTheme(theme, "quicksysselect");
+						if (!snd)
+							snd = NavigationSounds::getFromTheme(theme, "systembrowse");
+						if (snd)
+							snd->play();
+					}
+				}
+
 				onFocusLost();
 				ViewController::get()->goToPrevGameList();
 				return true;
 			}
-		}else if (config->isMappedTo("x", input))
+		}
+		// RANDOM
+		else if (config->isMappedTo("x", input))
 		{
 			if (mRoot->getSystem()->isGameSystem())
 			{
-				// go to random system game
 				FileData* randomGame = getCursor()->getSystem()->getRandomGame();
 				if (randomGame)
 				{
@@ -147,26 +235,44 @@ bool ISimpleGameListView::input(InputConfig* config, Input input)
 				}
 				return true;
 			}
-		}else if (config->isMappedTo("y", input) && !UIModeController::getInstance()->isUIModeKid())
+		}
+		// FAVORITO / COLECCIÓN (sonido "favorite")
+		else if (config->isMappedTo("y", input) && !UIModeController::getInstance()->isUIModeKid())
 		{
 			if(mRoot->getSystem()->isGameSystem())
 			{
 				if (CollectionSystemManager::get()->toggleGameInCollection(getCursor()))
 				{
+					// sonido favorite al togglear colección (normalmente Favoritos)
+					SystemData* sys = mRoot ? mRoot->getSystem() : nullptr;
+					if (sys != nullptr)
+					{
+						const std::shared_ptr<ThemeData>& theme = sys->getTheme();
+						if (theme)
+						{
+							auto favSnd = NavigationSounds::getFromTheme(theme, "favorite");
+							// fallback suave a "select" si el tema no tiene favorite
+							if (!favSnd)
+								favSnd = NavigationSounds::getFromTheme(theme, "select");
+							if (favSnd)
+								favSnd->play();
+						}
+					}
 					return true;
 				}
 			}
 		}
 	}
 
+	// Evento game-select para scripts
 	FileData* cursor = getCursor();
 	SystemData* system = this->mRoot->getSystem();
-    	if (system != NULL) {
-            Scripting::fireEvent("game-select", system->getName(), cursor->getPath(), cursor->getName(), "input");
-        }
+	if (system != NULL) {
+		Scripting::fireEvent("game-select", system->getName(), cursor->getPath(), cursor->getName(), "input");
+	}
 	else
 	{
-	    Scripting::fireEvent("game-select", "NULL", "NULL", "NULL", "input");
+		Scripting::fireEvent("game-select", "NULL", "NULL", "NULL", "input");
 	}
 	return IGameListView::input(config, input);
 }

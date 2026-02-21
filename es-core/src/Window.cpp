@@ -8,6 +8,8 @@
 #include "Scripting.h"
 #include <algorithm>
 #include <iomanip>
+#include <sstream>
+#include <vector>
 
 #ifdef WIN32
 #include <SDL_events.h>
@@ -297,15 +299,91 @@ void Window::renderLoadingScreen(std::string text, float percent, unsigned char 
 	splash.setPosition((Renderer::getScreenWidth() - splash.getSize().x()) / 2, (Renderer::getScreenHeight() - splash.getSize().y()) / 2 * 0.6f);
 	splash.render(trans);
 
-	auto& font = mDefaultFonts.at(1);
-	TextCache* cache = font->buildTextCache(text, 0, 0, 0x656565FF);
+	std::vector<std::string> lines;
+	if(text.find('\n') != std::string::npos)
+	{
+		std::stringstream ss(text);
+		std::string line;
+		while(std::getline(ss, line, '\n'))
+		{
+			if(!line.empty())
+				lines.push_back(line);
+		}
+	}
+	else if(text.find(", ") != std::string::npos)
+	{
+		size_t start = 0;
+		while(start < text.size())
+		{
+			size_t end = text.find(", ", start);
+			if(end == std::string::npos)
+				end = text.size();
 
-	float x = Math::round((Renderer::getScreenWidth() - cache->metrics.size.x()) / 2.0f);
-	float y = Math::round(Renderer::getScreenHeight() * 0.78f);
-	trans = trans.translate(Vector3f(x, y, 0.0f));
-	Renderer::setMatrix(trans);
-	font->renderTextCache(cache);
-	delete cache;
+			std::string line = text.substr(start, end - start);
+			if(!line.empty())
+				lines.push_back(line);
+
+			if(end == text.size())
+				break;
+			start = end + 2;
+		}
+	}
+	else
+	{
+		lines.push_back(text);
+	}
+
+	if(lines.empty())
+		lines.push_back("Loading...");
+
+	auto font = mDefaultFonts.at(1);
+	if(lines.size() > 4)
+		font = mDefaultFonts.at(0);
+
+	float maxTextWidth = 0.0f;
+	for(const auto& line : lines)
+	{
+		TextCache* cache = font->buildTextCache(line, 0, 0, 0x656565FF);
+		maxTextWidth = std::max(maxTextWidth, cache->metrics.size.x());
+		delete cache;
+	}
+
+	if(maxTextWidth > Renderer::getScreenWidth() * 0.9f)
+		font = mDefaultFonts.at(0);
+
+	const float barTop = Renderer::getScreenHeight() - (Renderer::getScreenHeight() * 3 * 0.04f);
+	const float textTopLimit = Renderer::getScreenHeight() * 0.58f;
+	const float textBottomLimit = barTop - 8.0f;
+	const float lineHeight = font->getHeight() * 1.15f;
+	const float availableHeight = std::max(0.0f, textBottomLimit - textTopLimit);
+
+	int maxLines = lineHeight <= 0.0f ? 1 : (int)(availableHeight / lineHeight);
+	if(maxLines < 1)
+		maxLines = 1;
+
+	if((int)lines.size() > maxLines)
+	{
+		const int hidden = (int)lines.size() - maxLines + 1;
+		lines.resize(maxLines);
+		lines[maxLines - 1] = "+" + std::to_string(hidden) + " more";
+	}
+
+	const float totalHeight = lineHeight * (float)lines.size();
+	float startY = textBottomLimit - totalHeight;
+	if(startY < textTopLimit)
+		startY = textTopLimit;
+
+	for(size_t i = 0; i < lines.size(); i++)
+	{
+		TextCache* cache = font->buildTextCache(lines[i], 0, 0, 0x656565FF);
+		float x = Math::round((Renderer::getScreenWidth() - cache->metrics.size.x()) / 2.0f);
+		float y = Math::round(startY + (lineHeight * (float)i));
+		Transform4x4f lineTrans = Transform4x4f::Identity();
+		lineTrans.translate(Vector3f(x, y, 0.0f));
+		Renderer::setMatrix(lineTrans);
+		font->renderTextCache(cache);
+		delete cache;
+	}
 
 	Renderer::swapBuffers();
 

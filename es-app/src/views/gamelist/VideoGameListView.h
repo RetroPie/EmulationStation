@@ -39,6 +39,7 @@ private:
 	ImageComponent mImage;
 
 	TextComponent mLblRating, mLblReleaseDate, mLblDeveloper, mLblPublisher, mLblGenre, mLblPlayers, mLblLastPlayed, mLblPlayCount;
+	TextComponent mLblRomName;
 
 	RatingComponent mRating;
 	DateTimeComponent mReleaseDate;
@@ -48,6 +49,8 @@ private:
 	TextComponent mPlayers;
 	DateTimeComponent mLastPlayed;
 	TextComponent mPlayCount;
+	ScrollableContainer mRomNameContainer;
+	TextComponent mRomNameText;
 	TextComponent mName;
 
 	std::vector<TextComponent*> getMDLabels();

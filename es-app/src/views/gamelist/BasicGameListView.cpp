@@ -34,8 +34,7 @@ void BasicGameListView::onFileChanged(FileData* file, FileChangeType change)
 {
 	if(change == FILE_METADATA_CHANGED)
 	{
-		// might switch to a detailed view
-		ViewController::get()->reloadGameListView(this);
+		ISimpleGameListView::onFileChanged(file, change);
 		return;
 	}
 

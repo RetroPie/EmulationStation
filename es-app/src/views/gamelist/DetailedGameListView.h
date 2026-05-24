@@ -45,6 +45,10 @@ private:
 	std::vector<TextComponent*> getMDLabels();
 	std::vector<GuiComponent*> getMDValues();
 
+	TextComponent mLblRomName;
+	ScrollableContainer mRomNameContainer;
+	TextComponent mRomNameText;
+
 	ScrollableContainer mDescContainer;
 	TextComponent mDescription;
 };

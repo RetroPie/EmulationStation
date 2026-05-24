@@ -34,11 +34,11 @@ void ScrollableContainer::render(const Transform4x4f& parentTrans)
 	Renderer::popClipRect();
 }
 
-void ScrollableContainer::setAutoScroll(bool autoScroll)
+void ScrollableContainer::setAutoScroll(bool autoScroll, bool horizontal)
 {
 	if(autoScroll)
 	{
-		mScrollDir = Vector2f(0, 1);
+		mScrollDir = horizontal ? Vector2f(1, 0) : Vector2f(0, 1);
 		if (mAutoScrollDelay == 0)
 		{
 			mAutoScrollDelay = AUTO_SCROLL_DELAY;
@@ -85,7 +85,11 @@ void ScrollableContainer::update(int deltaTime)
 		mScrollPos[1] = 0;
 
 	const Vector2f contentSize = getContentSize();
-	if(mScrollPos.x() + getSize().x() > contentSize.x())
+	if(contentSize.x() < getSize().x())
+	{
+		mScrollPos[0] = 0;
+	}
+	else if(mScrollPos.x() + getSize().x() > contentSize.x())
 	{
 		mScrollPos[0] = contentSize.x() - getSize().x();
 		mAtEnd = true;

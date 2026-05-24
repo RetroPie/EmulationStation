@@ -1,5 +1,7 @@
 #include "views/gamelist/ISimpleGameListView.h"
 
+#include "components/ImageComponent.h"
+#include "components/TextComponent.h"
 #include "views/UIModeController.h"
 #include "views/ViewController.h"
 #include "CollectionSystemManager.h"
@@ -7,6 +9,7 @@
 #include "Settings.h"
 #include "Sound.h"
 #include "SystemData.h"
+#include "Window.h"
 
 ISimpleGameListView::ISimpleGameListView(Window* window, FileData* root) : IGameListView(window, root),
 	mHeaderText(window), mHeaderImage(window), mBackground(window)
@@ -61,8 +64,18 @@ void ISimpleGameListView::onThemeChanged(const std::shared_ptr<ThemeData>& theme
 	}
 }
 
-void ISimpleGameListView::onFileChanged(FileData* /*file*/, FileChangeType /*change*/)
+void ISimpleGameListView::onFileChanged(FileData* /*file*/, FileChangeType change)
 {
+	if(change == FILE_METADATA_CHANGED)
+	{
+		FileData* cursor = getCursor();
+		// Keep metadata updates lightweight (avoid full list repopulate/flicker) while
+		// still forcing current row/panel refresh for preferred-ROM media changes.
+		if(cursor != nullptr && !cursor->isPlaceHolder())
+			setCursor(cursor, true);
+		return;
+	}
+
 	// we could be tricky here to be efficient;
 	// but this shouldn't happen very often so we'll just always repopulate
 	FileData* cursor = getCursor();

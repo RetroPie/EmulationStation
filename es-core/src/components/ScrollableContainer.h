@@ -11,7 +11,7 @@ public:
 
 	Vector2f getScrollPos() const;
 	void setScrollPos(const Vector2f& pos);
-	void setAutoScroll(bool autoScroll);
+	void setAutoScroll(bool autoScroll, bool horizontal = false);
 	void reset();
 
 	void update(int deltaTime) override;

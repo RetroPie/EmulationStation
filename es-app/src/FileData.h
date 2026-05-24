@@ -10,9 +10,29 @@ class SystemData;
 class Window;
 struct SystemEnvironmentData;
 
+struct RomData
+{
+	std::string path;
+	std::string romName;
+
+	std::vector<std::string> regions;
+	std::vector<std::string> languages;
+
+	std::string releaseDate;
+
+	std::string image;
+	std::string video;
+	std::string thumbnail;
+	std::string marquee;
+
+	bool preferred;
+
+	RomData() : preferred(false) {}
+};
+
 enum FileType
 {
-	GAME = 1,   // Cannot have children.
+	GAME = 1,   // Cannot have FileData children (ROM variants are stored in mRoms, not as FileData nodes).
 	FOLDER = 2,
 	PLACEHOLDER = 3
 };
@@ -49,6 +69,17 @@ public:
 	virtual const std::string getVideoPath() const;
 	virtual const std::string getMarqueePath() const;
 	virtual const std::string getImagePath() const;
+	const std::string getEffectiveImagePath(const RomData* rom) const;
+	const std::string getEffectiveVideoPath(const RomData* rom) const;
+	const std::string getEffectiveThumbnailPath(const RomData* rom) const;
+	const std::string getEffectiveMarqueePath(const RomData* rom) const;
+
+	inline const std::vector<RomData>& getRoms() const { return mRoms; }
+	// Mutable access for parser/migration code that needs to rebuild ROM variants in-place.
+	inline std::vector<RomData>& getRomsMutable() { return mRoms; }
+	const RomData* getPreferredRom() const;
+	const RomData* getRomByPath(const std::string& path) const;
+	const std::string getLaunchRomPath() const;
 
 	const std::vector<FileData*>& getChildrenListToDisplay();
 	std::vector<FileData*> getFilesRecursive(unsigned int typeMask, bool displayedOnly = false) const;
@@ -73,7 +104,7 @@ public:
 	// As above, but also remove parenthesis
 	std::string getCleanName() const;
 
-	void launchGame(Window* window);
+	void launchGame(Window* window, const std::string& romPathOverride = "");
 
 	typedef bool ComparisonFunction(const FileData* a, const FileData* b);
 	struct SortType
@@ -104,6 +135,7 @@ private:
 	std::unordered_map<std::string,FileData*> mChildrenByFilename;
 	std::vector<FileData*> mChildren;
 	std::vector<FileData*> mFilteredChildren;
+	std::vector<RomData> mRoms;
 	std::string mSortDesc;
 };
 

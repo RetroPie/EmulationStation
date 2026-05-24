@@ -3,12 +3,133 @@
 #include <chrono>
 
 #include "utils/FileSystemUtil.h"
+#include "utils/StringUtil.h"
 #include "FileData.h"
 #include "FileFilterIndex.h"
 #include "Log.h"
 #include "Settings.h"
 #include "SystemData.h"
 #include <pugixml.hpp>
+#include <unordered_map>
+
+namespace
+{
+	// Parses either nested (e.g. <languages><language>en</language></languages>)
+	// or repeated flat tags (e.g. <language>en</language><language>fr</language>)
+	// into a normalized vector.
+	std::vector<std::string> parseRomMultiValue(const pugi::xml_node& romNode, const char* singularTag, const char* containerTag)
+	{
+		std::vector<std::string> values;
+
+		pugi::xml_node container = romNode.child(containerTag);
+		if(container)
+		{
+			for(pugi::xml_node node = container.child(singularTag); node; node = node.next_sibling(singularTag))
+			{
+				const std::string value = Utils::String::trim(node.text().get());
+				if(!value.empty())
+					values.push_back(value);
+			}
+		}
+
+		if(values.empty())
+		{
+			for(pugi::xml_node node = romNode.child(singularTag); node; node = node.next_sibling(singularTag))
+			{
+				const std::string value = Utils::String::trim(node.text().get());
+				if(!value.empty())
+					values.push_back(value);
+			}
+		}
+
+		return values;
+	}
+
+	bool parsePreferredRomAttribute(const pugi::xml_node& romNode)
+	{
+		pugi::xml_attribute preferredAttr = romNode.attribute("preferred");
+		if(!preferredAttr)
+			return false;
+
+		std::string val = Utils::String::toLower(Utils::String::trim(preferredAttr.as_string()));
+		if(val == "true")
+			return true;
+		if(val == "false")
+			return false;
+
+		LOG(LogWarning) << "Invalid preferred value '" << preferredAttr.as_string() << "' on <rom>; expected 'true' or 'false'. Treating as false.";
+		return false;
+	}
+
+	RomData parseRomNode(const pugi::xml_node& romNode, const std::string& relativeTo)
+	{
+		RomData rom;
+		rom.path = Utils::FileSystem::resolveRelativePath(romNode.child("path").text().get(), relativeTo, false, true);
+		rom.romName = romNode.child("romname").text().get();
+		rom.regions = parseRomMultiValue(romNode, "region", "regions");
+		rom.languages = parseRomMultiValue(romNode, "language", "languages");
+		rom.releaseDate = romNode.child("releasedate").text().get();
+		rom.image = Utils::FileSystem::resolveRelativePath(romNode.child("image").text().get(), relativeTo, true, true);
+		rom.video = Utils::FileSystem::resolveRelativePath(romNode.child("video").text().get(), relativeTo, true, true);
+		rom.thumbnail = Utils::FileSystem::resolveRelativePath(romNode.child("thumbnail").text().get(), relativeTo, true, true);
+		rom.marquee = Utils::FileSystem::resolveRelativePath(romNode.child("marquee").text().get(), relativeTo, true, true);
+		rom.preferred = parsePreferredRomAttribute(romNode);
+		return rom;
+	}
+
+	void appendMultiValueNode(pugi::xml_node& parent, const char* containerTag, const char* childTag, const std::vector<std::string>& values)
+	{
+		if(values.empty())
+			return;
+
+		pugi::xml_node container = parent.append_child(containerTag);
+		for(auto it = values.cbegin(); it != values.cend(); ++it)
+			container.append_child(childTag).text().set(it->c_str());
+	}
+
+	void appendOptionalTextNode(pugi::xml_node& parent, const char* tag, const std::string& value)
+	{
+		if(!value.empty())
+			parent.append_child(tag).text().set(value.c_str());
+	}
+
+	void appendOptionalPathNode(pugi::xml_node& parent, const char* tag, const std::string& value, const std::string& relativeTo)
+	{
+		if(value.empty())
+			return;
+
+		std::string relValue = Utils::FileSystem::createRelativePath(value, relativeTo, true, true);
+		parent.append_child(tag).text().set(relValue.c_str());
+	}
+
+	std::string getGamePathForNode(const pugi::xml_node& gameNode, const std::string& relativeTo)
+	{
+		// New format can omit top-level <path>. In that case we choose the preferred
+		// ROM path as the canonical lookup key for findOrCreateFile.
+		std::string path = gameNode.child("path").text().get();
+		if(!path.empty())
+			return Utils::FileSystem::resolveRelativePath(path, relativeTo, false, true);
+
+		pugi::xml_node romsNode = gameNode.child("roms");
+		if(!romsNode)
+			return "";
+
+		pugi::xml_node firstRom;
+		for(pugi::xml_node romNode = romsNode.child("rom"); romNode; romNode = romNode.next_sibling("rom"))
+		{
+			if(!firstRom)
+				firstRom = romNode;
+
+			if(parsePreferredRomAttribute(romNode))
+				return Utils::FileSystem::resolveRelativePath(romNode.child("path").text().get(), relativeTo, false, true);
+		}
+
+		if(firstRom)
+			return Utils::FileSystem::resolveRelativePath(firstRom.child("path").text().get(), relativeTo, false, true);
+
+		return "";
+	}
+}
 
 FileData* findOrCreateFile(SystemData* system, const std::string& path, FileType type)
 {
@@ -101,8 +222,24 @@ FileData* findOrCreateFile(SystemData* system, const std::string& path, FileType
 	return NULL;
 }
 
+std::unordered_map<std::string, FileData*> buildGamePathIndex(SystemData* system)
+{
+	std::unordered_map<std::string, FileData*> index;
+	FileData* rootFolder = system->getRootFolder();
+	if(rootFolder == NULL)
+		return index;
+
+	const std::vector<FileData*> games = rootFolder->getFilesRecursive(GAME);
+	for(auto it = games.cbegin(); it != games.cend(); ++it)
+		index[(*it)->getPath()] = *it;
+
+	return index;
+}
+
 void parseGamelist(SystemData* system)
 {
+	const auto parseStartTs = std::chrono::steady_clock::now();
+
 	bool trustGamelist = Settings::getInstance()->getBool("ParseGamelistOnly");
 	std::string xmlpath = system->getGamelistPath(false);
 	const std::vector<std::string> allowedExtensions = system->getExtensions();
@@ -129,6 +266,14 @@ void parseGamelist(SystemData* system)
 	}
 
 	std::string relativeTo = system->getStartPath();
+	const auto indexStartTs = std::chrono::steady_clock::now();
+	std::unordered_map<std::string, FileData*> gamePathIndex = buildGamePathIndex(system);
+	const auto indexEndTs = std::chrono::steady_clock::now();
+
+	size_t hierarchicalGameCount = 0;
+	size_t romVariantCount = 0;
+	size_t duplicateRemovedCount = 0;
+	const auto parseLoopStartTs = std::chrono::steady_clock::now();
 
 	const char* tagList[2] = { "game", "folder" };
 	FileType typeList[2] = { GAME, FOLDER };
@@ -138,8 +283,13 @@ void parseGamelist(SystemData* system)
 		FileType type = typeList[i];
 		for(pugi::xml_node fileNode = root.child(tag); fileNode; fileNode = fileNode.next_sibling(tag))
 		{
-			std::string path = fileNode.child("path").text().get();
-			path = Utils::FileSystem::resolveRelativePath(path, relativeTo, false, true);
+			std::string path = (type == GAME) ? getGamePathForNode(fileNode, relativeTo) : Utils::FileSystem::resolveRelativePath(fileNode.child("path").text().get(), relativeTo, false, true);
+
+			if(path.empty())
+			{
+				LOG(LogWarning) << "Missing path for <" << tag << "> entry, skipping.";
+				continue;
+			}
 
 			if(!trustGamelist && !Utils::FileSystem::exists(path))
 			{
@@ -162,8 +312,87 @@ void parseGamelist(SystemData* system)
 			}
 			else if(!file->isArcadeAsset())
 			{
+				if(type == GAME)
+					gamePathIndex[file->getPath()] = file;
+
 				std::string defaultName = file->metadata.get("name");
 				file->metadata = MetaDataList::createFromXML(file->getType() == GAME ? GAME_METADATA : FOLDER_METADATA, fileNode, relativeTo);
+				if(type == GAME)
+				{
+					// Rebuild ROM variants from XML every parse so in-memory state reflects
+					// both old flat and new hierarchical formats consistently.
+					std::vector<RomData>& roms = file->getRomsMutable();
+					roms.clear();
+
+					pugi::xml_node romsNode = fileNode.child("roms");
+					if(romsNode)
+					{
+						hierarchicalGameCount++;
+						for(pugi::xml_node romNode = romsNode.child("rom"); romNode; romNode = romNode.next_sibling("rom"))
+						{
+							RomData rom = parseRomNode(romNode, relativeTo);
+							if(!rom.path.empty())
+							{
+								roms.push_back(rom);
+								romVariantCount++;
+							}
+							
+						}
+					}
+
+					if(roms.empty())
+					{
+						// Backward-compat: old flat <game> entries become one game + one rom.
+						RomData rom;
+						rom.path = path;
+						rom.romName = fileNode.child("romname").text().as_string(fileNode.child("name").text().get());
+						rom.regions = parseRomMultiValue(fileNode, "region", "regions");
+						rom.languages = parseRomMultiValue(fileNode, "language", "languages");
+						rom.releaseDate = fileNode.child("releasedate").text().get();
+						rom.image = Utils::FileSystem::resolveRelativePath(fileNode.child("image").text().get(), relativeTo, true, true);
+						rom.video = Utils::FileSystem::resolveRelativePath(fileNode.child("video").text().get(), relativeTo, true, true);
+						rom.thumbnail = Utils::FileSystem::resolveRelativePath(fileNode.child("thumbnail").text().get(), relativeTo, true, true);
+						rom.marquee = Utils::FileSystem::resolveRelativePath(fileNode.child("marquee").text().get(), relativeTo, true, true);
+						rom.preferred = true;
+						roms.push_back(rom);
+						romVariantCount++;
+					}
+
+					bool hasPreferred = false;
+					for(auto rit = roms.cbegin(); rit != roms.cend(); ++rit)
+					{
+						if(rit->preferred)
+						{
+							hasPreferred = true;
+							break;
+						}
+					}
+					if(!hasPreferred)
+						// Deterministic fallback when preferred is absent in source XML.
+						roms.front().preferred = true;
+
+					// Preserve legacy behavior where releasedate was expected on game-level metadata.
+					if((file->metadata.get("releasedate").empty() || file->metadata.get("releasedate") == "not-a-date-time") && !roms.front().releaseDate.empty())
+						file->metadata.set("releasedate", roms.front().releaseDate);
+
+					// Keep one canonical FileData entry per hierarchical game. Any other
+					// ROM paths in this same game node are variants and should not remain
+					// as standalone top-level entries discovered from filesystem scanning.
+					for(auto rit = roms.cbegin(); rit != roms.cend(); ++rit)
+					{
+						if(rit->path.empty() || rit->path == file->getPath())
+							continue;
+
+						auto duplicateIt = gamePathIndex.find(rit->path);
+						FileData* duplicate = (duplicateIt != gamePathIndex.cend()) ? duplicateIt->second : NULL;
+						if(duplicate != NULL && duplicate->getType() == GAME)
+						{
+							gamePathIndex.erase(rit->path);
+							delete duplicate;
+							duplicateRemovedCount++;
+						}
+					}
+				}
 
 				//make sure name gets set if one didn't exist
 				if(file->metadata.get("name").empty())
@@ -173,10 +402,51 @@ void parseGamelist(SystemData* system)
 			}
 		}
 	}
+
+	const auto parseLoopEndTs = std::chrono::steady_clock::now();
+	const auto parseEndTs = std::chrono::steady_clock::now();
+	LOG(LogInfo) << "Parsed gamelist performance for system '" << system->getName() << "': "
+		<< "index=" << std::chrono::duration_cast<std::chrono::milliseconds>(indexEndTs - indexStartTs).count() << "ms, "
+		<< "parse-loop=" << std::chrono::duration_cast<std::chrono::milliseconds>(parseLoopEndTs - parseLoopStartTs).count() << "ms, "
+		<< "total=" << std::chrono::duration_cast<std::chrono::milliseconds>(parseEndTs - parseStartTs).count() << "ms, "
+		<< "hierarchical-games=" << hierarchicalGameCount << ", "
+		<< "rom-variants=" << romVariantCount << ", "
+		<< "duplicates-removed=" << duplicateRemovedCount;
 }
 
 void addFileDataNode(pugi::xml_node& parent, const FileData* file, const char* tag, SystemData* system)
 {
+	if(file->getType() == GAME)
+	{
+		pugi::xml_node newNode = parent.append_child(tag);
+
+		file->metadata.appendToXML(newNode, true, system->getStartPath());
+		// New hierarchical format stores launch paths and release dates per ROM.
+		newNode.remove_child("path");
+		newNode.remove_child("releasedate");
+
+		pugi::xml_node romsNode = newNode.append_child("roms");
+		for(auto it = file->getRoms().cbegin(); it != file->getRoms().cend(); ++it)
+		{
+			pugi::xml_node romNode = romsNode.append_child("rom");
+			if(it->preferred)
+				romNode.append_attribute("preferred") = "true";
+
+			std::string relPath = Utils::FileSystem::createRelativePath(it->path, system->getStartPath(), false, true);
+			romNode.append_child("path").text().set(relPath.c_str());
+
+			appendOptionalTextNode(romNode, "romname", it->romName);
+			appendMultiValueNode(romNode, "regions", "region", it->regions);
+			appendMultiValueNode(romNode, "languages", "language", it->languages);
+			appendOptionalTextNode(romNode, "releasedate", it->releaseDate);
+			appendOptionalPathNode(romNode, "image", it->image, system->getStartPath());
+			appendOptionalPathNode(romNode, "video", it->video, system->getStartPath());
+			appendOptionalPathNode(romNode, "thumbnail", it->thumbnail, system->getStartPath());
+			appendOptionalPathNode(romNode, "marquee", it->marquee, system->getStartPath());
+		}
+		return;
+	}
+
 	//create game and add to parent node
 	pugi::xml_node newNode = parent.append_child(tag);
 
@@ -276,6 +546,7 @@ void updateGamelist(SystemData* system)
 		for(int i = 0; i < 2; i++)
 		{
 			const char* tag = tagList[i];
+			FileType nodeType = typeList[i];
 			std::vector<FileData*> changes = changedList[i];
 
 			// check for changed items of this type
@@ -284,20 +555,20 @@ void updateGamelist(SystemData* system)
 				// if it does, remove all corresponding items before adding
 				for(pugi::xml_node fileNode = root.child(tag); fileNode; )
 				{
-					pugi::xml_node pathNode = fileNode.child("path");
-
 					// we need this as we were deleting the iterator and things would become inconsistent
 					pugi::xml_node nextNode = fileNode.next_sibling(tag);
 
-					if(!pathNode)
+					std::string xmlpath;
+					if(nodeType == GAME)
+						xmlpath = getGamePathForNode(fileNode, relativeTo);
+					else
+						xmlpath = Utils::FileSystem::resolveRelativePath(fileNode.child("path").text().get(), relativeTo, false, true);
+
+					if(xmlpath.empty())
 					{
-						LOG(LogError) << "<" << tag << "> node contains no <path> child!";
+						fileNode = nextNode;
 						continue;
 					}
-
-					std::string xmlpath = pathNode.text().get();
-					// apply the same transformation as in Gamelist::parseGamelist
-					xmlpath = Utils::FileSystem::resolveRelativePath(xmlpath, relativeTo, false, true);
 
 					for(std::vector<FileData*>::const_iterator cfit = changes.cbegin(); cfit != changes.cend(); ++cfit)
 					{

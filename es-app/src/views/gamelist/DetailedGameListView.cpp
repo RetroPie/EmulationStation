@@ -1,6 +1,7 @@
 #include "views/gamelist/DetailedGameListView.h"
 
 #include "animations/LambdaAnimation.h"
+#include "utils/FileSystemUtil.h"
 #include "views/ViewController.h"
 
 DetailedGameListView::DetailedGameListView(Window* window, FileData* root) :
@@ -15,7 +16,9 @@ DetailedGameListView::DetailedGameListView(Window* window, FileData* root) :
 
 	mRating(window), mReleaseDate(window), mDeveloper(window), mPublisher(window),
 	mGenre(window), mPlayers(window), mLastPlayed(window), mPlayCount(window),
-	mName(window)
+	mName(window),
+
+	mLblRomName(window), mRomNameContainer(window), mRomNameText(window)
 {
 	//mHeaderImage.setPosition(mSize.x() * 0.25f, 0);
 
@@ -77,13 +80,22 @@ DetailedGameListView::DetailedGameListView(Window* window, FileData* root) :
 	mLblPlayCount.setText("Times played: ");
 	addChild(&mLblPlayCount);
 	addChild(&mPlayCount);
-
 	mName.setPosition(mSize.x(), mSize.y());
 	mName.setDefaultZIndex(40);
 	mName.setColor(0xAAAAAAFF);
 	mName.setFont(Font::get(FONT_SIZE_MEDIUM));
 	mName.setHorizontalAlignment(ALIGN_CENTER);
 	addChild(&mName);
+
+	mLblRomName.setText("Rom Name: ");
+	mLblRomName.setColor(0x777777FF); // default visible color; overridden by theme
+	mLblRomName.setDefaultZIndex(40);
+	addChild(&mLblRomName);
+
+	mRomNameContainer.setAutoScroll(true, true); // horizontal marquee
+	mRomNameContainer.setDefaultZIndex(40);
+	addChild(&mRomNameContainer);
+	mRomNameContainer.addChild(&mRomNameText);
 
 	mDescContainer.setPosition(mSize.x() * padding, mSize.y() * 0.65f);
 	mDescContainer.setSize(mSize.x() * (0.50f - 2*padding), mSize.y() - mDescContainer.getPosition().y());
@@ -124,6 +136,10 @@ void DetailedGameListView::onThemeChanged(const std::shared_ptr<ThemeData>& them
 		labels[i]->applyTheme(theme, getName(), lblElements[i], ALL);
 	}
 
+	// Apply desc container position/size from theme BEFORE initMDValues() so that
+	// initMDValues() can nudge the y below the ROM name row while still inheriting
+	// the theme's x and width.
+	mDescContainer.applyTheme(theme, getName(), "md_description", POSITION | ThemeFlags::SIZE | Z_INDEX | VISIBLE);
 
 	initMDValues();
 	std::vector<GuiComponent*> values = getMDValues();
@@ -138,9 +154,12 @@ void DetailedGameListView::onThemeChanged(const std::shared_ptr<ThemeData>& them
 		values[i]->applyTheme(theme, getName(), valElements[i], ALL ^ ThemeFlags::TEXT);
 	}
 
-	mDescContainer.applyTheme(theme, getName(), "md_description", POSITION | ThemeFlags::SIZE | Z_INDEX | VISIBLE);
 	mDescription.setSize(mDescContainer.getSize().x(), 0);
 	mDescription.applyTheme(theme, getName(), "md_description", ALL ^ (POSITION | ThemeFlags::SIZE | ThemeFlags::ORIGIN | TEXT | ROTATION));
+	mLblRomName.applyTheme(theme, getName(), "md_lbl_romname", ALL ^ ROTATION);
+	mRomNameContainer.applyTheme(theme, getName(), "md_romname", POSITION | ThemeFlags::SIZE | Z_INDEX | VISIBLE);
+	mRomNameText.applyTheme(theme, getName(), "md_romname", ALL ^ (POSITION | ThemeFlags::SIZE | ThemeFlags::ORIGIN | TEXT | ROTATION));
+	mRomNameContainer.setZIndex(mLblRomName.getZIndex());
 
 	sortChildren();
 }
@@ -190,6 +209,8 @@ void DetailedGameListView::initMDValues()
 	mPlayers.setFont(defaultFont);
 	mLastPlayed.setFont(defaultFont);
 	mPlayCount.setFont(defaultFont);
+	mLblRomName.setFont(defaultFont);
+	mRomNameText.setFont(defaultFont);
 
 	float bottom = 0.0f;
 
@@ -204,10 +225,34 @@ void DetailedGameListView::initMDValues()
 		float testBot = values[i]->getPosition().y() + values[i]->getSize().y();
 		if(testBot > bottom)
 			bottom = testBot;
+
+		float labelBot = labels[i]->getPosition().y() + labels[i]->getSize().y();
+		if(labelBot > bottom)
+			bottom = labelBot;
 	}
 
-	mDescContainer.setPosition(mDescContainer.getPosition().x(), bottom + mSize.y() * 0.01f);
-	mDescContainer.setSize(mDescContainer.getSize().x(), mSize.y() - mDescContainer.getPosition().y());
+	const float rowY = bottom;
+	const float lineH = defaultFont->getHeight();
+
+	mLblRomName.setPosition(Vector3f(mLblPublisher.getPosition().x(), rowY, 0.0f));
+	mLblRomName.setDefaultZIndex(40);
+	const float labelW = mLblRomName.getSize().x();
+	mRomNameContainer.setPosition(mLblRomName.getPosition() + Vector3f(labelW, 0.0f, 0.0f));
+	mRomNameContainer.setSize(mSize.x() * 0.48f - labelW, lineH);
+
+	mRomNameText.setPosition(Vector3f(0, 0, 0));
+	mRomNameText.setSize(0, lineH);
+	mRomNameText.setDefaultZIndex(40);
+
+	const float rowPadding = 0.01f * mSize.y();
+	const float rowBottom = rowY + mLblRomName.getSize().y();
+
+	// Preserve theme bottom edge: capture it after applyTheme, shrink top to fit ROM name row.
+	const float descBottom = mDescContainer.getPosition().y() + mDescContainer.getSize().y();
+	const float newDescY = rowBottom + rowPadding;
+	mDescContainer.setPosition(mDescContainer.getPosition().x(), newDescY);
+	mDescContainer.setSize(mDescContainer.getSize().x(), descBottom - newDescY);
+
 }
 
 void DetailedGameListView::updateInfoPanel()
@@ -234,12 +279,12 @@ void DetailedGameListView::updateInfoPanel()
 		mGenre.setValue(file->metadata.get("genre"));
 		mPlayers.setValue(file->metadata.get("players"));
 		mName.setValue(file->metadata.get("name"));
-
-		if(file->getType() == GAME)
-		{
-			mLastPlayed.setValue(file->metadata.get("lastplayed"));
-			mPlayCount.setValue(file->metadata.get("playcount"));
-		}
+		const RomData* preferred = file->getPreferredRom();
+		if(preferred != NULL && !preferred->romName.empty())
+			mRomNameText.setValue(preferred->romName);
+		else
+			mRomNameText.setValue(file->getName());
+		mRomNameContainer.reset();
 
 		fadingOut = false;
 	}
@@ -250,6 +295,8 @@ void DetailedGameListView::updateInfoPanel()
 	comps.push_back(&mImage);
 	comps.push_back(&mDescription);
 	comps.push_back(&mName);
+	comps.push_back(&mRomNameText);
+	comps.push_back(&mLblRomName);
 	std::vector<TextComponent*> labels = getMDLabels();
 	comps.insert(comps.cend(), labels.cbegin(), labels.cend());
 

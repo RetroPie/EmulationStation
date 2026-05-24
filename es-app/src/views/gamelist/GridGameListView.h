@@ -51,6 +51,7 @@ private:
 	void initMDValues();
 
 	TextComponent mLblRating, mLblReleaseDate, mLblDeveloper, mLblPublisher, mLblGenre, mLblPlayers, mLblLastPlayed, mLblPlayCount;
+	TextComponent mLblRomName;
 
 	ImageComponent mMarquee;
 	VideoComponent* mVideo;
@@ -64,6 +65,8 @@ private:
 	TextComponent mPlayers;
 	DateTimeComponent mLastPlayed;
 	TextComponent mPlayCount;
+	ScrollableContainer mRomNameContainer;
+	TextComponent mRomNameText;
 	TextComponent mName;
 
 	std::vector<TextComponent*> getMDLabels();

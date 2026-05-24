@@ -24,6 +24,13 @@ FileData::FileData(FileType type, const std::string& path, SystemEnvironmentData
 	if(metadata.get("name").empty())
 		metadata.set("name", getDisplayName());
 	mSystemName = system->getName();
+	if(mType == GAME)
+	{
+		RomData rom;
+		rom.path = path;
+		rom.preferred = true;
+		mRoms.push_back(rom);
+	}
 	metadata.resetChangedFlag();
 }
 
@@ -54,12 +61,22 @@ std::string FileData::getCleanName() const
 
 const std::string FileData::getThumbnailPath() const
 {
-	std::string thumbnail = metadata.get("thumbnail");
+	return getEffectiveThumbnailPath(getPreferredRom());
+}
+
+const std::string FileData::getEffectiveThumbnailPath(const RomData* rom) const
+{
+	std::string thumbnail;
+	if(rom)
+		thumbnail = rom->thumbnail;
+
+	if(thumbnail.empty())
+		thumbnail = metadata.get("thumbnail");
 
 	// no thumbnail, try image
 	if(thumbnail.empty())
 	{
-		thumbnail = metadata.get("image");
+		thumbnail = getEffectiveImagePath(rom);
 
 		// no image, try to use local image
 		if(thumbnail.empty() && Settings::getInstance()->getBool("LocalArt"))
@@ -115,7 +132,17 @@ const std::vector<FileData*>& FileData::getChildrenListToDisplay() {
 
 const std::string FileData::getVideoPath() const
 {
-	std::string video = metadata.get("video");
+	return getEffectiveVideoPath(getPreferredRom());
+}
+
+const std::string FileData::getEffectiveVideoPath(const RomData* rom) const
+{
+	std::string video;
+	if(rom)
+		video = rom->video;
+
+	if(video.empty())
+		video = metadata.get("video");
 
 	// no video, try to use local video
 	if(video.empty() && Settings::getInstance()->getBool("LocalArt"))
@@ -130,7 +157,17 @@ const std::string FileData::getVideoPath() const
 
 const std::string FileData::getMarqueePath() const
 {
-	std::string marquee = metadata.get("marquee");
+	return getEffectiveMarqueePath(getPreferredRom());
+}
+
+const std::string FileData::getEffectiveMarqueePath(const RomData* rom) const
+{
+	std::string marquee;
+	if(rom)
+		marquee = rom->marquee;
+
+	if(marquee.empty())
+		marquee = metadata.get("marquee");
 
 	// no marquee, try to use local marquee
 	if(marquee.empty() && Settings::getInstance()->getBool("LocalArt"))
@@ -152,7 +189,17 @@ const std::string FileData::getMarqueePath() const
 
 const std::string FileData::getImagePath() const
 {
-	std::string image = metadata.get("image");
+	return getEffectiveImagePath(getPreferredRom());
+}
+
+const std::string FileData::getEffectiveImagePath(const RomData* rom) const
+{
+	std::string image;
+	if(rom)
+		image = rom->image;
+
+	if(image.empty())
+		image = metadata.get("image");
 
 	// no image, try to use local image
 	if(image.empty())
@@ -170,6 +217,40 @@ const std::string FileData::getImagePath() const
 	}
 
 	return image;
+}
+
+const RomData* FileData::getPreferredRom() const
+{
+	if(mRoms.empty())
+		return NULL;
+
+	for(auto it = mRoms.cbegin(); it != mRoms.cend(); ++it)
+	{
+		if(it->preferred)
+			return &(*it);
+	}
+
+	return &mRoms.front();
+}
+
+const RomData* FileData::getRomByPath(const std::string& path) const
+{
+	for(auto it = mRoms.cbegin(); it != mRoms.cend(); ++it)
+	{
+		if(it->path == path)
+			return &(*it);
+	}
+
+	return NULL;
+}
+
+const std::string FileData::getLaunchRomPath() const
+{
+	const RomData* preferred = getPreferredRom();
+	if(preferred != NULL && !preferred->path.empty())
+		return preferred->path;
+
+	return getPath();
 }
 
 std::vector<FileData*> FileData::getFilesRecursive(unsigned int typeMask, bool displayedOnly) const
@@ -276,7 +357,7 @@ void FileData::sort(const SortType& type)
 	mSortDesc = type.description;
 }
 
-void FileData::launchGame(Window* window)
+void FileData::launchGame(Window* window, const std::string& romPathOverride)
 {
 	LOG(LogInfo) << "Attempting to launch game...";
 
@@ -287,9 +368,10 @@ void FileData::launchGame(Window* window)
 
 	std::string command = mEnvData->mLaunchCommand;
 
-	const std::string rom      = Utils::FileSystem::getEscapedPath(getPath());
-	const std::string basename = Utils::FileSystem::getStem(getPath());
-	const std::string rom_raw  = Utils::FileSystem::getPreferredPath(getPath());
+	const std::string launchPath = romPathOverride.empty() ? getLaunchRomPath() : romPathOverride;
+	const std::string rom      = Utils::FileSystem::getEscapedPath(launchPath);
+	const std::string basename = Utils::FileSystem::getStem(launchPath);
+	const std::string rom_raw  = Utils::FileSystem::getPreferredPath(launchPath);
 	const std::string name     = getName();
 
 	command = Utils::String::replace(command, "%ROM%", rom);
@@ -335,6 +417,7 @@ CollectionFileData::CollectionFileData(FileData* file, SystemData* system)
 	refreshMetadata();
 	mParent = NULL;
 	metadata = mSourceFileData->metadata;
+	getRomsMutable() = mSourceFileData->getRoms();
 	mSystemName = mSourceFileData->getSystem()->getName();
 }
 
@@ -358,6 +441,7 @@ FileData* CollectionFileData::getSourceFileData()
 void CollectionFileData::refreshMetadata()
 {
 	metadata = mSourceFileData->metadata;
+	getRomsMutable() = mSourceFileData->getRoms();
 	mDirty = true;
 }
 

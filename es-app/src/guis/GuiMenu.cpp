@@ -451,6 +451,11 @@ void GuiMenu::openOtherSettings()
 	s->addWithLabel("PARSE GAMESLISTS ONLY", parse_gamelists);
 	s->addSaveFunc([parse_gamelists] { Settings::getInstance()->setBool("ParseGamelistOnly", parse_gamelists->getState()); });
 
+	auto threaded_loading = std::make_shared<SwitchComponent>(mWindow);
+	threaded_loading->setState(Settings::getInstance()->getBool("ThreadedLoading"));
+	s->addWithLabel("GAMESLISTS THREADED LOADING", threaded_loading);
+	s->addSaveFunc([threaded_loading] { Settings::getInstance()->setBool("ThreadedLoading", threaded_loading->getState()); });
+
 	auto local_art = std::make_shared<SwitchComponent>(mWindow);
 	local_art->setState(Settings::getInstance()->getBool("LocalArt"));
 	s->addWithLabel("SEARCH FOR LOCAL ART", local_art);

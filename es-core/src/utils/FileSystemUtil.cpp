@@ -9,6 +9,7 @@
 
 #if defined(_WIN32)
 // because windows...
+#include "utils/StringUtil.h"
 #include <direct.h>
 #include <Windows.h>
 #define getcwd _getcwd
@@ -36,21 +37,6 @@ namespace Utils
 
 //////////////////////////////////////////////////////////////////////////
 
-#if defined(_WIN32)
-		static std::string convertFromWideString(const std::wstring _wstring)
-		{
-			const int   numBytes = WideCharToMultiByte(CP_UTF8, 0, _wstring.c_str(), (int)_wstring.length(), nullptr, 0, nullptr, nullptr);
-			std::string string(numBytes, 0);
-
-			WideCharToMultiByte(CP_UTF8, 0, _wstring.c_str(), (int)_wstring.length(), (char*)string.c_str(), numBytes, nullptr, nullptr);
-
-			return std::string(string);
-
-		} // convertFromWideString
-#endif // _WIN32
-
-//////////////////////////////////////////////////////////////////////////
-
 		stringList getDirContent(const std::string& _path, const bool _recursive)
 		{
 			const std::string path = getGenericPath(_path);
@@ -62,16 +48,16 @@ namespace Utils
 
 #if defined(_WIN32)
 				const std::unique_lock<std::recursive_mutex> lock(mutex);
-				WIN32_FIND_DATAW                             findData;
+				WIN32_FIND_DATA                              findData;
 				const std::string                            wildcard = path + "/*";
-				const HANDLE                                 hFind    = FindFirstFileW(std::wstring(wildcard.begin(), wildcard.end()).c_str(), &findData);
+				const HANDLE                                 hFind    = FindFirstFile(wildcard.c_str(), &findData);
 
 				if(hFind != INVALID_HANDLE_VALUE)
 				{
 					// loop over all files in the directory
 					do
 					{
-						const std::string name = convertFromWideString(findData.cFileName);
+						const std::string name = findData.cFileName;
 
 						// ignore "." and ".."
 						if((name != ".") && (name != ".."))
@@ -83,8 +69,10 @@ namespace Utils
 							if(_recursive && isDirectory(fullName))
 								contentList.merge(getDirContent(fullName, true));
 						}
+
+						FindNextFile(hFind, &findData);
 					}
-					while(FindNextFileW(hFind, &findData));
+					while(GetLastError() != ERROR_NO_MORE_FILES);
 
 					FindClose(hFind);
 				}
@@ -216,13 +204,14 @@ namespace Utils
 		void setExePath(const std::string& _path)
 		{
 			const size_t path_max = 32767;
+			std::string result(path_max, 0);
 
 #if defined(_WIN32)
-			std::wstring result(path_max, 0);
-			if(GetModuleFileNameW(nullptr, &result[0], path_max) != 0)
-				exePath = convertFromWideString(result);
+			if(GetModuleFileName(nullptr, &result[0], path_max) != 0){
+				result.resize(result.find_first_of('\0'));
+				exePath = result;
+			}
 #else // _WIN32
-			std::string result(path_max, 0);
 			if(readlink("/proc/self/exe", &result[0], path_max) != -1)
 				exePath = result;
 #endif // !_WIN32
@@ -570,9 +559,9 @@ namespace Utils
 			if(hFile != INVALID_HANDLE_VALUE)
 			{
 				resolved.resize(GetFinalPathNameByHandle(hFile, nullptr, 0, FILE_NAME_NORMALIZED) + 1);
-				if(GetFinalPathNameByHandle(hFile, (LPSTR)resolved.data(), (DWORD)resolved.size(), FILE_NAME_NORMALIZED) > 0)
+				if(GetFinalPathNameByHandle(hFile, (LPSTR)resolved.data(), resolved.size(), FILE_NAME_NORMALIZED) > 0)
 				{
-					resolved.resize(resolved.size() - 1);
+					resolved.resize(resolved.find_first_of('\0'));
 					resolved = getGenericPath(resolved);
 				}
 				CloseHandle(hFile);
@@ -606,7 +595,7 @@ namespace Utils
 				return true;
 
 			bool removed = (unlink(path.c_str()) == 0);
-			
+
 			// if removed, let's remove it from the index
 			if (removed)
 				pathExistsIndex[_path] = false;
@@ -764,9 +753,19 @@ namespace Utils
 
 //////////////////////////////////////////////////////////////////////////
 
-#if !defined(_WIN32)
 		bool isExecutable(const std::string& _path)
 		{
+#ifdef _WIN32
+			std::string ext = getenv("PATHEXT");
+			Utils::String::stringVector pathext = Utils::String::delimitedStringToVector(ext, ";");
+
+			ext = getExtension(_path);
+			for(auto it = pathext.cbegin(); it != pathext.cend(); it++)
+				if(stricmp(ext.c_str(), it->c_str()) == 0)
+					return true;
+
+			return false;
+#else
 			const std::string path = getGenericPath(_path);
 
 			// regular files and executables, but not setuid, setgid, shared text
@@ -780,9 +779,8 @@ namespace Utils
 
 			// check for mask attributes
 			return (info.st_mode & mask) == mask && (info.st_mode & mask_exec) != 0;
-
+#endif
 		} // isExecutable
-#endif // !_WIN32
 
 	} // FileSystem::
 

@@ -158,8 +158,7 @@ C:\src\EmulationStation>cmake . -B build -A Win32 ^
 -DCURL_LIBRARY=%CURL_LIBRARY% ^
 -DSDL2_LIBRARY=%SDL2_LIBRARY% ^
 -DVLC_LIBRARIES=%VLC_LIBRARIES% ^
--DVLC_VERSION=%VLC_VERSION% ^
--DCMAKE_EXE_LINKER_FLAGS=/SAFESEH:NO
+-DVLC_VERSION=%VLC_VERSION%
 ```
 
 * Use CMake to build the Visual Studio project.

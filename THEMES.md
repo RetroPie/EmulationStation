@@ -514,6 +514,63 @@ Reference
 
 ---
 
+#### search
+The search popup is a full-screen overlay launched from the game list.  All metadata elements are positioned off-screen and invisible by default — define them in your theme to enable them.
+
+* `image name="background"` - ALL
+	- Optional background image rendered behind all other elements.  Not present by default; omit to keep the built-in translucent dark panel.
+* `text name="searchtext"` - ALL ^ TEXT
+	- The search query input bar at the top of the popup (position/size/font/color only — text content is managed by the engine).
+* `text name="listmessage"` - ALL ^ TEXT
+	- Status/placeholder message shown over the result list (e.g. "TYPE TO SEARCH…", "NO RESULTS FOUND").
+* `textlist name="gamelist"` - ALL
+	- The result list on the left.  `primaryColor` for game entries, `secondaryColor` for other entries.
+
+* Metadata
+	* Labels
+		* `text name="md_lbl_rating"` - ALL
+		* `text name="md_lbl_releasedate"` - ALL
+		* `text name="md_lbl_developer"` - ALL
+		* `text name="md_lbl_publisher"` - ALL
+		* `text name="md_lbl_genre"` - ALL
+		* `text name="md_lbl_players"` - ALL
+		* `text name="md_lbl_lastplayed"` - ALL
+		* `text name="md_lbl_playcount"` - ALL
+
+	* Values
+		* All values will follow to the right of their labels if a position isn't specified.
+
+		* `image name="md_image"` - POSITION | SIZE | Z_INDEX | ROTATION | VISIBLE
+			- Path is the "image" metadata for the currently selected game.
+		* `image name="md_thumbnail"` - POSITION | SIZE | Z_INDEX | ROTATION | VISIBLE
+			- Path is the "thumbnail" metadata for the currently selected game.
+		* `image name="md_marquee"` - POSITION | SIZE | Z_INDEX | ROTATION | VISIBLE
+			- Path is the "marquee" metadata.  Hidden by default; set `visible` to show.
+		* `video name="md_video"` - POSITION | SIZE | DELAY | Z_INDEX | ROTATION | VISIBLE
+			- Path is the "video" metadata.  **Hidden by default** — you must explicitly set `<visible>true</visible>` (or define a position/size) to enable video playback.  To disable video entirely, omit this element or set `<visible>false</visible>`.
+		* `rating name="md_rating"` - ALL
+			- The "rating" metadata.
+		* `datetime name="md_releasedate"` - ALL
+			- The "releasedate" metadata.
+		* `text name="md_developer"` - ALL
+			- The "developer" metadata.
+		* `text name="md_publisher"` - ALL
+			- The "publisher" metadata.
+		* `text name="md_genre"` - ALL
+			- The "genre" metadata.
+		* `text name="md_players"` - ALL
+			- The "players" metadata.
+		* `datetime name="md_lastplayed"` - ALL
+			- The "lastplayed" metadata.  Displayed relative to now (e.g. "3 hours ago").
+		* `text name="md_playcount"` - ALL
+			- The "playcount" metadata.
+		* `text name="md_description"` - POSITION | SIZE | FONT_PATH | FONT_SIZE | COLOR | Z_INDEX
+			- Text is the "desc" metadata.
+		* `text name="md_name"` - ALL
+			- The "name" metadata (game title).  Positioned off-screen by default.
+
+---
+
 #### grid
 * `helpsystem name="help"` - ALL
 	- The help system style for this view.

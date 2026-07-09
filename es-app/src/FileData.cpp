@@ -287,9 +287,17 @@ void FileData::launchGame(Window* window)
 
 	std::string command = mEnvData->mLaunchCommand;
 
-	const std::string rom      = Utils::FileSystem::getEscapedPath(getPath());
-	const std::string basename = Utils::FileSystem::getStem(getPath());
-	const std::string rom_raw  = Utils::FileSystem::getPreferredPath(getPath());
+	std::string path = getPath();
+	if(Utils::FileSystem::isDirectory(path))
+	{
+		const std::string path2 = Utils::FileSystem::resolveRelativePath(Utils::FileSystem::getFileName(path), path, false, true);
+		if(Utils::FileSystem::isRegularFile(path2))
+			path = path2;
+	}
+
+	const std::string rom      = Utils::FileSystem::getEscapedPath(path);
+	const std::string basename = Utils::FileSystem::getStem(path);
+	const std::string rom_raw  = Utils::FileSystem::getPreferredPath(path);
 	const std::string name     = getName();
 
 	command = Utils::String::replace(command, "%ROM%", rom);

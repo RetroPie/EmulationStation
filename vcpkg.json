@@ -1,0 +1,9 @@
+{
+    "dependencies": [
+      "curl",
+      "freeimage",
+      "freetype",
+      "rapidjson",
+      "sdl2"
+    ]
+  }

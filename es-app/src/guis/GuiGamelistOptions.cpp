@@ -13,7 +13,7 @@
 #include "components/TextListComponent.h"
 
 GuiGamelistOptions::GuiGamelistOptions(Window* window, SystemData* system) : GuiComponent(window),
-	mSystem(system), mMenu(window, "OPTIONS"), mFromPlaceholder(false), mFiltersChanged(false),
+	mSystem(system), mMenu(window, "OPTIONS", Font::get(FONT_SIZE_LARGE), LIST_ALWAYS_LOOP), mFromPlaceholder(false), mFiltersChanged(false),
 	mJumpToSelected(false), mMetadataChanged(false)
 {
 	addChild(&mMenu);

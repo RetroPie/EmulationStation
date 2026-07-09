@@ -7,7 +7,7 @@
 
 #define TITLE_HEIGHT (mTitle->getFont()->getLetterHeight() + TITLE_VERT_PADDING)
 
-MenuComponent::MenuComponent(Window* window, const char* title, const std::shared_ptr<Font>& titleFont) : GuiComponent(window),
+MenuComponent::MenuComponent(Window* window, const char* title, const std::shared_ptr<Font>& titleFont, ListLoopType loop_type) : GuiComponent(window),
 	mBackground(window), mGrid(window, Vector2i(1, 3))
 {
 	addChild(&mBackground);
@@ -23,7 +23,7 @@ MenuComponent::MenuComponent(Window* window, const char* title, const std::share
 	mGrid.setEntry(mTitle, Vector2i(0, 0), false);
 
 	// set up list which will never change (externally, anyway)
-	mList = std::make_shared<ComponentList>(mWindow);
+	mList = std::make_shared<ComponentList>(mWindow, loop_type);
 	mGrid.setEntry(mList, Vector2i(0, 1), true);
 
 	updateGrid();

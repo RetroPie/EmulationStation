@@ -248,6 +248,10 @@ All systems must be contained within the <systemList> tag.-->
 		You MUST include the period at the start of the extension! It's also case sensitive. -->
 		<extension>.smc .sfc .SMC .SFC</extension>
 
+		<!-- A list of filenames to ignore, delimited by any of the whitespace characters (", \r\n\t").
+		You MUST wrap each filename in double quotes (since some filenames contain spaces). Not case sensitive. -->
+		<ignore>"filename1.bin" "filename2.iso" "filename3.zip"</ignore>
+
 		<!-- The shell command executed when a game is selected. A few special tags are replaced if found in a command, like %ROM% (see below). -->
 		<command>snesemulator %ROM%</command>
 		<!-- This example would run the bash command "snesemulator /home/user/roms/snes/Super\ Mario\ World.sfc". -->

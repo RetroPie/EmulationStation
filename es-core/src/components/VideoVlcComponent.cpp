@@ -5,14 +5,77 @@
 #include "utils/StringUtil.h"
 #include "PowerSaver.h"
 #include "Settings.h"
+#ifdef WIN32
+#include <basetsd.h>
+#include <codecvt>
+typedef SSIZE_T ssize_t;
+#else
+#include <unistd.h>
+#endif
 #include <vlc/vlc.h>
 #include <SDL_mutex.h>
 
-#ifdef WIN32
-#include <codecvt>
-#endif
-
 libvlc_instance_t* VideoVlcComponent::mVLC = NULL;
+
+// Persistent worker thread statics for non-blocking VLC cleanup
+std::thread              VideoVlcComponent::sCleanupThread;
+std::mutex               VideoVlcComponent::sCleanupMutex;
+std::condition_variable  VideoVlcComponent::sCleanupCond;
+std::deque<std::function<void()>> VideoVlcComponent::sCleanupQueue;
+bool                     VideoVlcComponent::sCleanupRunning = false;
+bool                     VideoVlcComponent::sCleanupExit = false;
+
+void VideoVlcComponent::cleanupWorker()
+{
+	while (true)
+	{
+		std::function<void()> task;
+		{
+			std::unique_lock<std::mutex> lock(sCleanupMutex);
+			sCleanupCond.wait(lock, [] { return !sCleanupQueue.empty() || sCleanupExit; });
+			if (sCleanupQueue.empty())
+				break; // exit flag set and no remaining work
+			task = std::move(sCleanupQueue.front());
+			sCleanupQueue.pop_front();
+		}
+		task();
+	}
+}
+
+void VideoVlcComponent::postCleanupTask(std::function<void()> task)
+{
+	{
+		std::lock_guard<std::mutex> lock(sCleanupMutex);
+		// Lazily start the persistent worker thread on first use
+		if (!sCleanupRunning)
+		{
+			sCleanupRunning = true;
+			sCleanupThread = std::thread(cleanupWorker);
+			// Thread is kept joinable — deinit() will join it on shutdown.
+		}
+		sCleanupQueue.push_back(std::move(task));
+	}
+	sCleanupCond.notify_one();
+}
+
+void VideoVlcComponent::deinit()
+{
+	// Signal the worker thread to exit once the queue is drained
+	{
+		std::lock_guard<std::mutex> lock(sCleanupMutex);
+		sCleanupExit = true;
+	}
+	sCleanupCond.notify_one();
+
+	if (sCleanupRunning && sCleanupThread.joinable())
+		sCleanupThread.join();
+
+	if (mVLC)
+	{
+		libvlc_release(mVLC);
+		mVLC = nullptr;
+	}
+}
 
 // VLC prepares to render a video frame.
 static void *lock(void *data, void **p_pixels) {
@@ -37,9 +100,10 @@ static void display(void* /*data*/, void* /*id*/) {
 
 VideoVlcComponent::VideoVlcComponent(Window* window, std::string subtitles) :
 	VideoComponent(window),
-	mMediaPlayer(nullptr)
+	mMediaPlayer(nullptr),
+	mMediaParsing(false)
 {
-	memset(&mContext, 0, sizeof(mContext));
+	mContext = nullptr;
 
 	// Get an empty texture for rendering the video
 	mTexture = TextureResource::get("");
@@ -134,12 +198,15 @@ void VideoVlcComponent::render(const Transform4x4f& parentTrans)
 	if (!isVisible())
 		return;
 
+	// Poll for async media parsing completion each frame
+	handleParsing();
+
 	VideoComponent::render(parentTrans);
 	Transform4x4f trans = parentTrans * getTransform();
 	GuiComponent::renderChildren(trans);
 	Renderer::setMatrix(trans);
 
-	if (mIsPlaying && mContext.valid)
+	if (mIsPlaying && mContext && mContext->valid)
 	{
 		const unsigned int fadeIn = (unsigned int)(Math::clamp(0.0f, mFadeIn, 1.0f) * 255.0f);
 		const unsigned int color  = Renderer::convertColor((fadeIn << 24) | (fadeIn << 16) | (fadeIn << 8) | 255);
@@ -155,7 +222,7 @@ void VideoVlcComponent::render(const Transform4x4f& parentTrans)
 			vertices[i].pos.round();
 
 		// Build a texture for the video frame
-		mTexture->initFromPixels((unsigned char*)mContext.surface->pixels, mContext.surface->w, mContext.surface->h);
+		mTexture->initFromPixels((unsigned char*)mContext->surface->pixels, mContext->surface->w, mContext->surface->h);
 		mTexture->bind();
 
 		// Render it
@@ -169,23 +236,25 @@ void VideoVlcComponent::render(const Transform4x4f& parentTrans)
 
 void VideoVlcComponent::setupContext()
 {
-	if (!mContext.valid)
+	if (!mContext)
 	{
 		// Create an RGBA surface to render the video into
-		mContext.surface = SDL_CreateRGBSurface(SDL_SWSURFACE, (int)mVideoWidth, (int)mVideoHeight, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
-		mContext.mutex = SDL_CreateMutex();
-		mContext.valid = true;
+		mContext = new VideoContext();
+		mContext->surface = SDL_CreateRGBSurface(SDL_SWSURFACE, (int)mVideoWidth, (int)mVideoHeight, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
+		mContext->mutex = SDL_CreateMutex();
+		mContext->valid = true;
 		resize();
 	}
 }
 
 void VideoVlcComponent::freeContext()
 {
-	if (mContext.valid)
+	if (mContext)
 	{
-		SDL_FreeSurface(mContext.surface);
-		SDL_DestroyMutex(mContext.mutex);
-		mContext.valid = false;
+		SDL_FreeSurface(mContext->surface);
+		SDL_DestroyMutex(mContext->mutex);
+		delete mContext;
+		mContext = nullptr;
 	}
 }
 
@@ -220,11 +289,7 @@ void VideoVlcComponent::handleLooping()
 		libvlc_state_t state = libvlc_media_player_get_state(mMediaPlayer);
 		if (state == libvlc_Ended)
 		{
-			if (!Settings::getInstance()->getBool("VideoAudio") ||
-				(Settings::getInstance()->getBool("ScreenSaverVideoMute") && mScreensaverMode))
-			{
-				libvlc_audio_set_mute(mMediaPlayer, 1);
-			}
+			setMuteMode();
 			//libvlc_media_player_set_position(mMediaPlayer, 0.0f);
 			libvlc_media_player_set_media(mMediaPlayer, mMedia);
 			libvlc_media_player_play(mMediaPlayer);
@@ -234,7 +299,7 @@ void VideoVlcComponent::handleLooping()
 
 void VideoVlcComponent::startVideo()
 {
-	if (!mIsPlaying) {
+	if (!mIsPlaying && !mMediaParsing) {
 		mVideoWidth = 0;
 		mVideoHeight = 0;
 
@@ -253,74 +318,92 @@ void VideoVlcComponent::startVideo()
 			mMedia = libvlc_media_new_path(mVLC, path.c_str());
 			if (mMedia)
 			{
-				unsigned track_count;
-				// Get the media metadata so we can find the aspect ratio
-				libvlc_media_parse(mMedia);
-				libvlc_media_track_t** tracks;
-				track_count = libvlc_media_tracks_get(mMedia, &tracks);
-				for (unsigned track = 0; track < track_count; ++track)
+				// Start async parse — we will poll for completion in handleParsing()
+				libvlc_media_parse_with_options(mMedia, libvlc_media_fetch_local, -1);
+				mMediaParsing = true;
+			}
+		}
+	}
+}
+
+void VideoVlcComponent::handleParsing()
+{
+	if (!mMediaParsing || !mMedia)
+		return;
+
+	// Poll — not yet parsed, come back next frame
+	if (libvlc_media_get_parsed_status(mMedia) == 0)
+		return;
+
+	mMediaParsing = false;
+	onMediaParsed();
+}
+
+void VideoVlcComponent::onMediaParsed()
+{
+	unsigned track_count;
+	libvlc_media_track_t** tracks;
+	track_count = libvlc_media_tracks_get(mMedia, &tracks);
+	for (unsigned track = 0; track < track_count; ++track)
+	{
+		if (tracks[track]->i_type == libvlc_track_video)
+		{
+			mVideoWidth = tracks[track]->video->i_width;
+			mVideoHeight = tracks[track]->video->i_height;
+			break;
+		}
+	}
+	libvlc_media_tracks_release(tracks, track_count);
+
+	// Make sure we found a valid video track
+	if ((mVideoWidth > 0) && (mVideoHeight > 0))
+	{
+		if (mScreensaverMode)
+		{
+			std::string resolution = Settings::getInstance()->getString("VlcScreenSaverResolution");
+			if(resolution != "original") {
+				float scale = 1;
+				if (resolution == "low")
+					// 25% of screen resolution
+					scale = 0.25;
+				if (resolution == "medium")
+					// 50% of screen resolution
+					scale = 0.5;
+				if (resolution == "high")
+					// 75% of screen resolution
+					scale = 0.75;
+
+				Vector2f resizeScale((Renderer::getScreenWidth() / (float)mVideoWidth) * scale, (Renderer::getScreenHeight() / (float)mVideoHeight) * scale);
+
+				if(resizeScale.x() < resizeScale.y())
 				{
-					if (tracks[track]->i_type == libvlc_track_video)
-					{
-						mVideoWidth = tracks[track]->video->i_width;
-						mVideoHeight = tracks[track]->video->i_height;
-						break;
-					}
-				}
-				libvlc_media_tracks_release(tracks, track_count);
-
-				// Make sure we found a valid video track
-				if ((mVideoWidth > 0) && (mVideoHeight > 0))
-				{
-					if (mScreensaverMode)
-					{
-						std::string resolution = Settings::getInstance()->getString("VlcScreenSaverResolution");
-						if(resolution != "original") {
-							float scale = 1;			
-							if (resolution == "low")
-								// 25% of screen resolution
-								scale = 0.25;
-							if (resolution == "medium")
-								// 50% of screen resolution
-								scale = 0.5;
-							if (resolution == "high")
-								// 75% of screen resolution
-								scale = 0.75;
-
-							Vector2f resizeScale((Renderer::getScreenWidth() / (float)mVideoWidth) * scale, (Renderer::getScreenHeight() / (float)mVideoHeight) * scale);
-
-							if(resizeScale.x() < resizeScale.y())
-							{
-								mVideoWidth = (unsigned int) (mVideoWidth * resizeScale.x());
-								mVideoHeight = (unsigned int) (mVideoHeight * resizeScale.x());
-							}else{
-								mVideoWidth = (unsigned int) (mVideoWidth * resizeScale.y());
-								mVideoHeight = (unsigned int) (mVideoHeight * resizeScale.y());
-							}
-						}
-					}
-					PowerSaver::pause();
-					setupContext();
-
-					// Setup the media player
-					mMediaPlayer = libvlc_media_player_new_from_media(mMedia);
-
-					if (!Settings::getInstance()->getBool("VideoAudio") ||
-						(Settings::getInstance()->getBool("ScreenSaverVideoMute") && mScreensaverMode))
-					{
-						libvlc_audio_set_mute(mMediaPlayer, 1);
-					}
-
-					libvlc_media_player_play(mMediaPlayer);
-					libvlc_video_set_callbacks(mMediaPlayer, lock, unlock, display, (void*)&mContext);
-					libvlc_video_set_format(mMediaPlayer, "RGBA", (int)mVideoWidth, (int)mVideoHeight, (int)mVideoWidth * 4);
-
-					// Update the playing state
-					mIsPlaying = true;
-					mFadeIn = 0.0f;
+					mVideoWidth = (unsigned int) (mVideoWidth * resizeScale.x());
+					mVideoHeight = (unsigned int) (mVideoHeight * resizeScale.x());
+				}else{
+					mVideoWidth = (unsigned int) (mVideoWidth * resizeScale.y());
+					mVideoHeight = (unsigned int) (mVideoHeight * resizeScale.y());
 				}
 			}
 		}
+		else
+		{
+			remove(getTitlePath().c_str());
+		}
+		PowerSaver::pause();
+		setupContext();
+
+		// Setup the media player
+		mMediaPlayer = libvlc_media_player_new_from_media(mMedia);
+
+		setMuteMode();
+
+		libvlc_media_player_play(mMediaPlayer);
+		libvlc_video_set_callbacks(mMediaPlayer, lock, unlock, display, (void*)mContext);
+		libvlc_video_set_format(mMediaPlayer, "RGBA", (int)mVideoWidth, (int)mVideoHeight, (int)mVideoWidth * 4);
+
+		// Update the playing state
+		mIsPlaying = true;
+		mFadeIn = 0.0f;
 	}
 }
 
@@ -328,14 +411,52 @@ void VideoVlcComponent::stopVideo()
 {
 	mIsPlaying = false;
 	mStartDelayed = false;
-	// Release the media player so it stops calling back to us
+	mPlayingVideoPath = "";
+	// If we were mid-parse with no player yet, cancel the parse on a background
+	// thread so the blocking libvlc_media_parse_stop call doesn't stall the UI.
+	if (mMediaParsing && mMedia)
+	{
+		libvlc_media_t* media = mMedia;
+		mMedia = nullptr;
+		mMediaParsing = false;
+
+		postCleanupTask([media]() {
+			libvlc_media_parse_stop(media);
+			libvlc_media_release(media);
+		});
+		return;
+	}
+	mMediaParsing = false;
+	// Release the media player on a background thread so the blocking
+	// libvlc_media_player_stop call doesn't freeze the UI.
 	if (mMediaPlayer)
 	{
-		libvlc_media_player_stop(mMediaPlayer);
-		libvlc_media_player_release(mMediaPlayer);
-		libvlc_media_release(mMedia);
-		mMediaPlayer = NULL;
-		freeContext();
-		PowerSaver::resume();
+		libvlc_media_player_t* player = mMediaPlayer;
+		libvlc_media_t* media = mMedia;
+		VideoContext* context = mContext;
+
+		mMediaPlayer = nullptr;
+		mMedia = nullptr;
+		mContext = nullptr;
+
+		postCleanupTask([player, media, context]() {
+			libvlc_media_player_stop(player);
+			libvlc_media_player_release(player);
+			libvlc_media_release(media);
+			if (context) {
+				SDL_FreeSurface(context->surface);
+				SDL_DestroyMutex(context->mutex);
+				delete context;
+			}
+			PowerSaver::resume();
+		});
+	}
+}
+
+void VideoVlcComponent::setMuteMode()
+{
+	Settings *cfg = Settings::getInstance();
+	if (!cfg->getBool("VideoAudio") || (cfg->getBool("ScreenSaverVideoMute") && mScreensaverMode)) {
+		libvlc_media_add_option(mMedia, ":no-audio");
 	}
 }

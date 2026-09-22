@@ -7,7 +7,7 @@ TextureDataManager		TextureResource::sTextureDataManager;
 std::map< TextureResource::TextureKeyType, std::weak_ptr<TextureResource> > TextureResource::sTextureMap;
 std::set<TextureResource*> 	TextureResource::sAllTextures;
 
-TextureResource::TextureResource(const std::string& path, bool tile, bool dynamic) : mTextureData(nullptr), mSize(0.0f, 0.0f), mSourceSize(0.0f, 0.0f), mForceLoad(false)
+TextureResource::TextureResource(const std::string& path, bool tile, bool dynamic, bool block) : mTextureData(nullptr), mSize(0.0f, 0.0f), mSourceSize(0.0f, 0.0f), mForceLoad(false)
 {
 	// Create a texture data object for this texture
 	if (!path.empty())
@@ -19,20 +19,24 @@ TextureResource::TextureResource(const std::string& path, bool tile, bool dynami
 		{
 			data = sTextureDataManager.add(this, tile);
 			data->initFromPath(path);
-			// Force the texture manager to load it using a blocking load
-			sTextureDataManager.load(data, true);
+			// Load the texture - either blocking or async via the background thread
+			sTextureDataManager.load(data, block);
 		}
 		else
 		{
 			mTextureData = std::shared_ptr<TextureData>(new TextureData(tile));
 			data = mTextureData;
 			data->initFromPath(path);
-			// Load it so we can read the width/height
+			// Non-dynamic textures are always loaded immediately (blocking)
 			data->load();
 		}
 
-		mSize = Vector2i((int)data->width(), (int)data->height());
-		mSourceSize = Vector2f(data->sourceWidth(), data->sourceHeight());
+		if (block || !dynamic)
+		{
+			mSize = Vector2i((int)data->width(), (int)data->height());
+			mSourceSize = Vector2f(data->sourceWidth(), data->sourceHeight());
+		}
+		// When block=false && dynamic, sizes stay at (0,0) until updateTextureSize() is called
 	}
 	else
 	{
@@ -100,11 +104,16 @@ bool TextureResource::bind()
 	}
 }
 
-std::shared_ptr<TextureResource> TextureResource::get(const std::string& path, bool tile, bool forceLoad, bool dynamic)
+std::shared_ptr<TextureResource> TextureResource::get(const std::string& path, bool tile, bool forceLoad, bool dynamic, bool block)
 {
 	std::shared_ptr<ResourceManager>& rm = ResourceManager::getInstance();
 
-	const std::string canonicalPath = Utils::FileSystem::getCanonicalPath(path);
+	// Avoid getCanonicalPath here — it calls stat64/lstat64 on every path component
+	// to resolve symlinks, which blocks the main thread for tens of ms per call on NAS.
+	// Use getGenericPath (pure string normalization) instead. Built-in resource paths
+	// starting with ":/" are passed through as-is (matching getCanonicalPath behavior).
+	const std::string canonicalPath = (path.size() >= 2 && path[0] == ':' && path[1] == '/')
+		? path : Utils::FileSystem::getGenericPath(path);
 	if(canonicalPath.empty())
 	{
 		std::shared_ptr<TextureResource> tex(new TextureResource("", tile, false));
@@ -122,8 +131,10 @@ std::shared_ptr<TextureResource> TextureResource::get(const std::string& path, b
 
 	// need to create it
 	std::shared_ptr<TextureResource> tex;
-	tex = std::shared_ptr<TextureResource>(new TextureResource(key.first, tile, dynamic));
-	std::shared_ptr<TextureData> data = sTextureDataManager.get(tex.get());
+	tex = std::shared_ptr<TextureResource>(new TextureResource(key.first, tile, dynamic, block));
+	// When block=false, pass enableLoading=false to avoid re-triggering a synchronous
+	// load — the constructor already queued it for async loading via TextureLoader.
+	std::shared_ptr<TextureData> data = sTextureDataManager.get(tex.get(), block);
 
 	// is it an SVG?
 	if(key.first.substr(key.first.size() - 4, std::string::npos) != ".svg")
@@ -162,6 +173,42 @@ void TextureResource::rasterizeAt(size_t width, size_t height)
 Vector2f TextureResource::getSourceImageSize() const
 {
 	return mSourceSize;
+}
+
+bool TextureResource::updateTextureSize()
+{
+	// If sizes are already known, nothing to do
+	if (mSize != Vector2i(0, 0))
+		return true;
+
+	// Get the texture data without triggering a load
+	std::shared_ptr<TextureData> data;
+	if (mTextureData != nullptr)
+		data = mTextureData;
+	else
+		data = sTextureDataManager.get(this, false);
+
+	if (!data)
+		return false;
+
+	switch (data->loadStatus())
+	{
+		case TextureData::LoadStatus::LOADED:
+			// The background thread has finished — read dimensions now
+			// (safe because LOADED guarantees data is available via mutex ordering)
+			mSize = Vector2i((int)data->width(), (int)data->height());
+			mSourceSize = Vector2f(data->sourceWidth(), data->sourceHeight());
+			return true;
+
+		case TextureData::LoadStatus::FAILED:
+			// Permanently failed (e.g. file not found). Treat as done so callers
+			// don't keep polling. mSize stays (0,0) — image simply won't display.
+			return true;
+
+		case TextureData::LoadStatus::LOADING:
+		default:
+			return false;
+	}
 }
 
 bool TextureResource::isInitialized() const
@@ -208,7 +255,7 @@ bool TextureResource::unload()
 	else
 		data = mTextureData;
 
-	if (data != nullptr && data->isLoaded())
+	if (data != nullptr && data->loadStatus() == TextureData::LoadStatus::LOADED)
 	{
 		data->releaseVRAM();
 		data->releaseRAM();
@@ -223,7 +270,7 @@ void TextureResource::reload()
 {
 	// For dynamically loaded textures the texture manager will load them on demand.
 	// For manually loaded textures we have to reload them here
-	if (mTextureData && !mTextureData->isLoaded())
+	if (mTextureData && mTextureData->loadStatus() == TextureData::LoadStatus::LOADING)
 		mTextureData->load();
 
 	// Uncomment this 2 lines in future release in order to reload texture VRAM exactly as it was before

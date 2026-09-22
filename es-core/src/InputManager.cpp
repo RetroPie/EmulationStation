@@ -6,7 +6,7 @@
 #include "platform.h"
 #include "Scripting.h"
 #include "Window.h"
-#include <pugixml/src/pugixml.hpp>
+#include <pugixml.hpp>
 #include <SDL.h>
 #include <iostream>
 #include <assert.h>
@@ -100,6 +100,11 @@ void InputManager::addJoystickByDeviceIndex(int id)
 
 	// create the InputConfig
 	mInputConfigs[joyId] = new InputConfig(joyId, SDL_JoystickName(joy), guid);
+
+	// add Vendor and Product IDs
+	mInputConfigs[joyId]->setVendorId(SDL_JoystickGetVendor(joy));
+	mInputConfigs[joyId]->setProductId(SDL_JoystickGetProduct(joy));
+
 	if(!loadInputConfig(mInputConfigs[joyId]))
 	{
 		LOG(LogInfo) << "Added unconfigured joystick '" << SDL_JoystickName(joy) << "' (GUID: " << guid << ", instance ID: " << joyId << ", device index: " << id << ").";

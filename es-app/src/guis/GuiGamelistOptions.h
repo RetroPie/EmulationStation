@@ -22,8 +22,10 @@ public:
 
 private:
 	void openGamelistFilter();
+	bool launchSystemScreenSaver();
 	void openMetaDataEd();
 	void startEditMode();
+	void recreateCollection();
 	void exitEditMode();
 	void jumpToLetter();
 
@@ -37,8 +39,10 @@ private:
 
 	SystemData* mSystem;
 	IGameListView* getGamelist();
-	bool fromPlaceholder;
+	bool mFromPlaceholder;
 	bool mFiltersChanged;
+	bool mJumpToSelected;
+	bool mMetadataChanged;
 };
 
 #endif // ES_APP_GUIS_GUI_GAME_LIST_OPTIONS_H

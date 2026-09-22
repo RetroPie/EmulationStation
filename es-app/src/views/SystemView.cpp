@@ -680,6 +680,8 @@ void SystemView::getCarouselFromTheme(const ThemeData::ThemeElement* elem)
 		else
 			mCarousel.logoAlignment = ALIGN_CENTER;
 	}
+	if (elem->has("scrollSound"))
+		mScrollSound = elem->get<std::string>("scrollSound");
 }
 
 void SystemView::onShow()

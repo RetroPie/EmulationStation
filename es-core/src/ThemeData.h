@@ -161,6 +161,9 @@ public:
 	// If expectedType is an empty string, will do no type checking.
 	const ThemeElement* getElement(const std::string& view, const std::string& element, const std::string& expectedType) const;
 
+	// Returns the value of a theme variable, or empty string if not defined.
+	std::string getVariable(const std::string& name) const;
+
 	static std::vector<GuiComponent*> makeExtras(const std::shared_ptr<ThemeData>& theme, const std::string& view, Window* window);
 
 	static const std::shared_ptr<ThemeData>& getDefault();

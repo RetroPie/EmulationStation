@@ -1,6 +1,7 @@
 #include "components/VideoComponent.h"
 
 #include "resources/ResourceManager.h"
+#include "Settings.h"
 #include "utils/FileSystemUtil.h"
 #include "PowerSaver.h"
 #include "ThemeData.h"
@@ -114,14 +115,9 @@ bool VideoComponent::setVideo(std::string path)
 	// Store the path
 	mVideoPath = fullPath;
 
-	// If the file exists then set the new video
-	if (!fullPath.empty() && ResourceManager::getInstance()->fileExists(fullPath))
-	{
-		// Return true to show that we are going to attempt to play a video
-		return true;
-	}
-	// Return false to show that no video will be displayed
-	return false;
+	// Return true if there's a path to attempt; missing files are handled
+	// gracefully by VLC, avoiding a blocking stat() call on NAS paths.
+	return !fullPath.empty();
 }
 
 void VideoComponent::setImage(std::string path)
@@ -131,6 +127,21 @@ void VideoComponent::setImage(std::string path)
 		return;
 
 	mStaticImage.setImage(path);
+	mFadeIn = 0.0f;
+	mStaticImagePath = path;
+}
+
+void VideoComponent::setImageAsync(std::string path)
+{
+	// Check that the image has changed
+	if (path == mStaticImagePath)
+		return;
+
+	if (!Settings::getInstance()->getBool("AsyncFileIO"))
+		mStaticImage.setImage(path);
+	else
+		mStaticImage.setImageAsync(path);
+
 	mFadeIn = 0.0f;
 	mStaticImagePath = path;
 }
@@ -221,6 +232,13 @@ void VideoComponent::handleStartDelay()
 	// Only play if any delay has timed out
 	if (mStartDelayed)
 	{
+		// If the snapshot image is still loading, keep pushing the deadline forward
+		// so the delay doesn't expire before the user has had a chance to see it.
+		if (mConfig.showSnapshotDelay && mStaticImage.isAsyncPending())
+		{
+			mStartTime = SDL_GetTicks() + mConfig.startDelay;
+			return;
+		}
 		if (mStartTime > SDL_GetTicks())
 		{
 			// Timeout not yet completed
@@ -228,8 +246,6 @@ void VideoComponent::handleStartDelay()
 		}
 		// Completed
 		mStartDelayed = false;
-		// Clear the playing flag so startVideo works
-		mIsPlaying = false;
 		startVideo();
 	}
 }
@@ -240,8 +256,8 @@ void VideoComponent::handleLooping()
 
 void VideoComponent::startVideoWithDelay()
 {
-	// If not playing then either start the video or initiate the delay
-	if (!mIsPlaying)
+	// If not playing and not already preparing to play, start the process
+	if (!mIsPlaying && mPlayingVideoPath.empty())
 	{
 		// Set the video that we are going to be playing so we don't attempt to restart it
 		mPlayingVideoPath = mVideoPath;
@@ -259,13 +275,16 @@ void VideoComponent::startVideoWithDelay()
 			mFadeIn = 0.0f;
 			mStartTime = SDL_GetTicks() + mConfig.startDelay;
 		}
-		mIsPlaying = true;
 	}
 }
 
 void VideoComponent::update(int deltaTime)
 {
 	manageState();
+
+	// mStaticImage is not a child, so we must pump its update manually
+	// to let its async-load polling (mAsyncPending) resolve.
+	mStaticImage.update(deltaTime);
 
 	// If the video start is delayed and there is less than the fade time then set the image fade
 	// accordingly
@@ -298,8 +317,8 @@ void VideoComponent::manageState()
 	// is not active and the component is visible
 	bool show = mShowing && !mScreensaverActive && !mDisable && mVisible;
 
-	// See if we're already playing
-	if (mIsPlaying)
+	// See if we're already playing (or mid-parse preparing to play)
+	if (mIsPlaying || mPlayingVideoPath.length() > 0)
 	{
 		// If we are not on display then stop the video from playing
 		if (!show)
@@ -317,7 +336,7 @@ void VideoComponent::manageState()
 		}
 	}
 	// Need to recheck variable rather than 'else' because it may be modified above
-	if (!mIsPlaying)
+	if (!mIsPlaying && mPlayingVideoPath.empty())
 	{
 		// If we are on display then see if we should start the video
 		if (show && !mVideoPath.empty())

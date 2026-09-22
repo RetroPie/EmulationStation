@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" version="1.1" xmlns="http://www.w3.org/2000/svg">
+<path d="M64 108.6l-8.4-7.6c-29.8-27-49.6-44.9-49.6-66.8 0-17.9 14.1-32 32-32 10.1 0 19.8 4.7 26 12.1 6.2-7.4 15.9-12.1 26-12.1 17.9 0 32 14.1 32 32 0 21.9-19.8 39.8-49.6 66.8l-8.4 7.6z" 
+      fill="#fff"
+      stroke="#fff"
+      stroke-linejoin="round" 
+      stroke-width="4"/>
+</svg>

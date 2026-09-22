@@ -58,7 +58,10 @@ public:
 	};
 
 protected:
+	struct Entry mEntry;
+
 	int mCursor;
+	int mViewportTop;
 
 	int mScrollTier;
 	int mScrollVelocity;
@@ -81,6 +84,7 @@ public:
 		mGradient(window), mTierList(tierList), mLoopType(loopType)
 	{
 		mCursor = 0;
+		mViewportTop = 0;
 		mScrollTier = 0;
 		mScrollVelocity = 0;
 		mScrollTierAccumulator = 0;
@@ -158,6 +162,16 @@ public:
 		return false;
 	}
 
+	void setViewportTop(int index)
+	{
+		mViewportTop = index;
+	}
+
+	int getViewportTop()
+	{
+		return mViewportTop;
+	}
+
 	// entry management
 	void add(const Entry& e)
 	{
@@ -226,8 +240,13 @@ protected:
 		if(mScrollVelocity == 0 || size() < 2)
 			return;
 
-		mScrollCursorAccumulator += deltaTime;
-		mScrollTierAccumulator += deltaTime;
+		// Cap the delta time used for scrolling to prevent multiple scroll jumps
+		// after a long-blocking frame (e.g., slow NAS I/O)
+		const int maxScrollDelta = mTierList.tiers[mScrollTier].scrollDelay;
+		int scrollDelta = (deltaTime > maxScrollDelta) ? maxScrollDelta : deltaTime;
+
+		mScrollCursorAccumulator += scrollDelta;
+		mScrollTierAccumulator += scrollDelta;
 
 		// we delay scrolling until after scroll tier has updated so isScrolling() returns accurately during onCursorChanged callbacks
 		// we don't just do scroll tier first because it would not catch the scrollDelay == tier length case

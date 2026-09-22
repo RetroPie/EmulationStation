@@ -6,6 +6,7 @@
 #include "components/TextComponent.h"
 #include "resources/Font.h"
 #include "GuiComponent.h"
+#include "Sound.h"
 #include <memory>
 
 class AnimatedImageComponent;
@@ -63,6 +64,7 @@ public:
 	virtual HelpStyle getHelpStyle() override;
 
 protected:
+	void onScroll(int /*amt*/) override { if(!mScrollSound.empty()) Sound::get(mScrollSound)->play(); }
 	void onCursorChanged(const CursorState& state) override;
 
 private:
@@ -79,6 +81,7 @@ private:
 
 	SystemViewCarousel mCarousel;
 	TextComponent mSystemInfo;
+	std::string mScrollSound;
 
 	// unit is list index
 	float mCamOffset;

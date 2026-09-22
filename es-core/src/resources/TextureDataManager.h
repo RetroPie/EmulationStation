@@ -3,6 +3,7 @@
 #define ES_CORE_RESOURCES_TEXTURE_DATA_MANAGER_H
 
 #include <condition_variable>
+#include <cstdint>
 #include <list>
 #include <map>
 #include <memory>
@@ -76,12 +77,20 @@ public:
 	// Load a texture, freeing resources as necessary to make space
 	void load(std::shared_ptr<TextureData> tex, bool block = false);
 
+	// Advance the bind-generation counter. Called once per rendered frame so the
+	// eviction logic in load() can tell which textures were drawn recently and
+	// avoid evicting them — otherwise the just-evicted texture is immediately
+	// re-requested next frame, causing a cascade of evictions and visible flicker.
+	void nextBindGeneration() { ++mBindGeneration; }
+	uint64_t currentBindGeneration() const { return mBindGeneration; }
+
 private:
 
 	std::list<std::shared_ptr<TextureData> >												mTextures;
 	std::map<const TextureResource*, std::list<std::shared_ptr<TextureData> >::const_iterator > 	mTextureLookup;
 	std::shared_ptr<TextureData>															mBlank;
 	TextureLoader*																			mLoader;
+	uint64_t																				mBindGeneration = 1;
 };
 
 #endif // ES_CORE_RESOURCES_TEXTURE_DATA_MANAGER_H

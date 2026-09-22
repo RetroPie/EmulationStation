@@ -7,7 +7,7 @@
 #include "PlatformId.h"
 #include "Settings.h"
 #include "SystemData.h"
-#include <pugixml/src/pugixml.hpp>
+#include <pugixml.hpp>
 #include <cstring>
 
 using namespace PlatformIds;
@@ -100,7 +100,8 @@ const std::map<PlatformId, unsigned short> screenscraper_platformid_map{
 	{ TANDY, 144 },
 	{ TI_99, 205 },
 	{ DRAGON32, 91 },
-	{ ZMACHINE, 21 }
+	{ ZMACHINE, 21 },
+	{ FMTOWNS, 253 }
 };
 
 
@@ -184,7 +185,7 @@ void ScreenScraperRequest::process(const std::unique_ptr<HttpReq>& req, std::vec
 	assert(req->status() == HttpReq::REQ_SUCCESS);
 
 	pugi::xml_document doc;
-	pugi::xml_parse_result parseResult = doc.load(req->getContent().c_str());
+	pugi::xml_parse_result parseResult = doc.load_string(req->getContent().c_str());
 
 	if (!parseResult)
 	{

@@ -10,7 +10,7 @@
 #include "Settings.h"
 #include "SystemData.h"
 #include "utils/TimeUtil.h"
-#include <pugixml/src/pugixml.hpp>
+#include <pugixml.hpp>
 
 /* When raspbian will get an up to date version of rapidjson we'll be
    able to have it throw in case of error with the following:
@@ -109,6 +109,7 @@ const std::map<PlatformId, std::string> gamesdb_new_platformid_map{
 	{ TRS80_COLOR_COMPUTER, "4941" },
 	{ TI_99, "4953" },
 	{ TANDY, "4941" },
+	{ FMTOWNS, "4932" },
 };
 
 void thegamesdb_generate_json_scraper_requests(const ScraperSearchParams& params,

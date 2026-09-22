@@ -4,7 +4,7 @@
 #include "Log.h"
 #include "Scripting.h"
 #include "platform.h"
-#include <pugixml/src/pugixml.hpp>
+#include <pugixml.hpp>
 #include <algorithm>
 #include <vector>
 
@@ -13,27 +13,28 @@ Settings* Settings::sInstance = NULL;
 // these values are NOT saved to es_settings.xml
 // since they're set through command-line arguments, and not the in-program settings menu
 std::vector<const char*> settings_dont_save {
-	{ "Debug" },
-	{ "DebugGrid" },
-	{ "DebugText" },
-	{ "DebugImage" },
-	{ "ForceKid" },
-	{ "ForceKiosk" },
-	{ "IgnoreGamelist" },
-	{ "HideConsole" },
-	{ "ShowExit" },
-	{ "ConfirmQuit" },
-	{ "SplashScreen" },
-	{ "VSync" },
-	{ "FullscreenBorderless" },
-	{ "Windowed" },
-	{ "WindowWidth" },
-	{ "WindowHeight" },
-	{ "ScreenWidth" },
-	{ "ScreenHeight" },
-	{ "ScreenOffsetX" },
-	{ "ScreenOffsetY" },
-	{ "ScreenRotate" }
+	"Debug",
+	"DebugGrid",
+	"DebugText",
+	"DebugImage",
+	"ForceKid",
+	"ForceKiosk",
+	"IgnoreGamelist",
+	"HideConsole",
+	"ShowExit",
+	"ConfirmQuit",
+	"SplashScreen",
+	"VSync",
+	"FullscreenBorderless",
+	"Windowed",
+	"WindowWidth",
+	"WindowHeight",
+	"ScreenWidth",
+	"ScreenHeight",
+	"ScreenOffsetX",
+	"ScreenOffsetY",
+	"ScreenRotate",
+	"MonitorID"
 };
 
 Settings::Settings()
@@ -57,6 +58,7 @@ void Settings::setDefaults()
 
 	mBoolMap["BackgroundJoystickInput"] = false;
 	mBoolMap["ParseGamelistOnly"] = false;
+	mBoolMap["AsyncFileIO"] = false;
 	mBoolMap["ShowHiddenFiles"] = false;
 	mBoolMap["DrawFramerate"] = false;
 	mBoolMap["ShowExit"] = true;
@@ -139,8 +141,17 @@ void Settings::setDefaults()
 	mStringMap["VlcScreenSaverResolution"] = "original";
 	// Audio out device for Video playback using OMX player.
 	mStringMap["OMXAudioDev"] = "both";
+	mIntMap["RandomCollectionMaxGames"] = 0; // 0 == no limit
+	std::map<std::string, int> m1;
+	mMapIntMap["RandomCollectionSystemsAuto"] = m1;
+	std::map<std::string, int> m2;
+	mMapIntMap["RandomCollectionSystemsCustom"] = m2;
+	std::map<std::string, int> m3;
+	mMapIntMap["RandomCollectionSystems"] = m3;
+	mStringMap["RandomCollectionExclusionCollection"] = "";
 	mStringMap["CollectionSystemsAuto"] = "";
 	mStringMap["CollectionSystemsCustom"] = "";
+	mStringMap["DefaultScreenSaverCollection"] = "";
 	mBoolMap["CollectionShowSystemInfo"] = true;
 	mBoolMap["SortAllSystems"] = false;
 	mBoolMap["UseCustomCollectionsSystem"] = true;
@@ -169,6 +180,7 @@ void Settings::setDefaults()
 	mIntMap["ScreenOffsetX"] = 0;
 	mIntMap["ScreenOffsetY"] = 0;
 	mIntMap["ScreenRotate"]  = 0;
+	mIntMap["MonitorID"] = 0;
 
 	mBoolMap["UseFullscreenPaging"] = false;
 
@@ -212,6 +224,20 @@ void Settings::saveFile()
 		node.append_attribute("value").set_value(iter->second.c_str());
 	}
 
+	for(auto &m : mMapIntMap)
+	{
+		pugi::xml_node node = doc.append_child("map");
+		node.append_attribute("name").set_value(m.first.c_str());
+		std::string datatype = "int";
+		node.append_attribute("type").set_value(datatype.c_str());
+		for(auto &intMap : m.second) // intMap is a <string, int> map
+		{
+			pugi::xml_node entry = node.append_child(datatype.c_str());
+			entry.append_attribute("name").set_value(intMap.first.c_str());
+			entry.append_attribute("value").set_value(intMap.second);
+		}
+	}
+
 	doc.save_file(path.c_str());
 
 	Scripting::fireEvent("config-changed");
@@ -242,8 +268,44 @@ void Settings::loadFile()
 	for(pugi::xml_node node = doc.child("string"); node; node = node.next_sibling("string"))
 		setString(node.attribute("name").as_string(), node.attribute("value").as_string());
 
+	for(pugi::xml_node node = doc.child("map"); node; node = node.next_sibling("map"))
+	{
+		std::string mapName = node.attribute("name").as_string();
+		std::string mapType = node.attribute("type").as_string();
+		if (mapType == "int") {
+			// only supporting int value maps currently
+			std::map<std::string, int> _map;
+			for(pugi::xml_node entry : node.children(mapType.c_str()))
+			{
+				_map[entry.attribute("name").as_string()] = entry.attribute("value").as_int();
+			}
+			setMap(mapName, _map);
+		} else {
+			LOG(LogWarning) << "Map: '" << mapName << "'. Unsupported data type '"<< mapType <<"'. Value ignored!";
+		}
+	}
+
 	processBackwardCompatibility();
 }
+
+
+void Settings::setMap(const std::string& key, const std::map<std::string, int>& map)
+{
+	mMapIntMap[key] = map;
+}
+
+const std::map<std::string, int> Settings::getMap(const std::string& key)
+{
+	if(mMapIntMap.find(key) == mMapIntMap.cend())
+	{
+		LOG(LogError) << "Tried to use undefined setting " << key << "!";
+		std::map<std::string, int> empty;
+		return empty;
+
+	}
+	return mMapIntMap[key];
+}
+
 
 template<typename Map>
 void Settings::renameSetting(Map& map, std::string&& oldName, std::string&& newName)

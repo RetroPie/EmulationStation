@@ -120,6 +120,9 @@ void TextComponent::render(const Transform4x4f& parentTrans)
 			case ALIGN_CENTER:
 				yOff = (getSize().y() - textSize.y()) / 2.0f;
 				break;
+			default:
+				LOG(LogError) << "Unknown vertical alignment: " << mVerticalAlignment;
+				break;
 		}
 		Vector3f off(0, yOff, 0);
 
@@ -147,68 +150,73 @@ void TextComponent::render(const Transform4x4f& parentTrans)
 			case ALIGN_RIGHT:
 				Renderer::drawRect(mSize.x() - mTextCache->metrics.size.x(), 0.0f, mTextCache->metrics.size.x(), mTextCache->metrics.size.y(), 0x00000033, 0x00000033);
 				break;
+			default:
+				LOG(LogError) << "Unknown horizontal alignment: " << mHorizontalAlignment;
+				break;
 			}
 		}
 		mFont->renderTextCache(mTextCache.get());
 	}
 }
 
-void TextComponent::calculateExtent()
+std::string TextComponent::calculateExtent(bool allow_wrapping)
 {
+	std::string text = mUppercase ? Utils::String::toUpper(mText) : mText;
 	if(mAutoCalcExtent.x())
 	{
-		mSize = mFont->sizeText(mUppercase ? Utils::String::toUpper(mText) : mText, mLineSpacing);
-	}else{
-		if(mAutoCalcExtent.y())
-		{
-			mSize[1] = mFont->sizeWrappedText(mUppercase ? Utils::String::toUpper(mText) : mText, getSize().x(), mLineSpacing).y();
+		mSize = mFont->sizeText(text, mLineSpacing);
+	}else if(mAutoCalcExtent.y() || allow_wrapping)
+		// usually a textcomponent wraps only when x > 0 and y == 0 in size (see TextComponent.h).
+		// The extra flag allow_wrapping does wrapping if an textcomponent has x > 0 and y > height of
+		// one line (calculated by fontsize and line spacing).
+		// Some themes rely on this wrap functionality while having an fixed y (y>0) in <size/>.
+	{
+		text = mFont->wrapText(text, getSize().x());
+		if (mAutoCalcExtent.y()) {
+			// only resize when y was 0 before
+			// otherwise leave y value as defined before (i.e. theme value)
+			mSize.y() = mFont->sizeText(text, mLineSpacing).y();
 		}
 	}
+	return text;
 }
 
 void TextComponent::onTextChanged()
 {
-	calculateExtent();
-
 	if(!mFont || mText.empty())
 	{
 		mTextCache.reset();
 		return;
 	}
 
-	std::string text = mUppercase ? Utils::String::toUpper(mText) : mText;
-
 	std::shared_ptr<Font> f = mFont;
-	const bool isMultiline = (mSize.y() == 0 || mSize.y() > f->getHeight()*1.2f);
+	std::string text = calculateExtent(mSize.y() > f->getHeight(mLineSpacing));
+	const bool oneLiner = mSize.y() > 0 && mSize.y() <= f->getHeight(mLineSpacing);
 
-	bool addAbbrev = false;
-	if(!isMultiline)
+	if(oneLiner)
 	{
+		bool addAbbrev = false;
 		size_t newline = text.find('\n');
 		text = text.substr(0, newline); // single line of text - stop at the first newline since it'll mess everything up
-		addAbbrev = newline != std::string::npos;
-	}
+		Vector2f size = f->sizeText(text);
+		addAbbrev = newline != std::string::npos || size.x() > mSize.x();
 
-	Vector2f size = f->sizeText(text);
-	if(!isMultiline && mSize.x() && text.size() && (size.x() > mSize.x() || addAbbrev))
-	{
-		// abbreviate text
-		const std::string abbrev = "...";
-		Vector2f abbrevSize = f->sizeText(abbrev);
-
-		while(text.size() && size.x() + abbrevSize.x() > mSize.x())
+		if(addAbbrev)
 		{
-			size_t newSize = Utils::String::prevCursor(text, text.size());
-			text.erase(newSize, text.size() - newSize);
-			size = f->sizeText(text);
+			// abbreviate text
+			const std::string abbrev = "...";
+			Vector2f abbrevSize = f->sizeText(abbrev);
+
+			while(text.size() && size.x() + abbrevSize.x() > mSize.x())
+			{
+				size_t newSize = Utils::String::prevCursor(text, text.size());
+				text.erase(newSize, text.size() - newSize);
+				size = f->sizeText(text);
+			}
+			text.append(abbrev);
 		}
-
-		text.append(abbrev);
-
-		mTextCache = std::shared_ptr<TextCache>(f->buildTextCache(text, Vector2f(0, 0), (mColor >> 8 << 8) | mOpacity, mSize.x(), mHorizontalAlignment, mLineSpacing));
-	}else{
-		mTextCache = std::shared_ptr<TextCache>(f->buildTextCache(f->wrapText(text, mSize.x()), Vector2f(0, 0), (mColor >> 8 << 8) | mOpacity, mSize.x(), mHorizontalAlignment, mLineSpacing));
 	}
+	mTextCache = std::shared_ptr<TextCache>(f->buildTextCache(text, Vector2f(0, 0), (mColor >> 8 << 8) | mOpacity, mSize.x(), mHorizontalAlignment, mLineSpacing));
 }
 
 void TextComponent::onColorChanged()

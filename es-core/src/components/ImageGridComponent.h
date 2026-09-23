@@ -7,6 +7,7 @@
 #include "components/IList.h"
 #include "resources/TextureResource.h"
 #include "GridTileComponent.h"
+#include "Sound.h"
 
 #define EXTRAITEMS 2
 
@@ -63,6 +64,7 @@ public:
 	ImageSource	getImageSource() { return mImageSource; };
 
 protected:
+	virtual void onScroll(int /*amt*/) override { if(!mScrollSound.empty()) Sound::get(mScrollSound)->play(); }
 	virtual void onCursorChanged(const CursorState& state) override;
 
 private:
@@ -104,6 +106,7 @@ private:
 	bool mCenterSelection;
 	bool mScrollLoop;
 	ScrollDirection mScrollDirection;
+	std::string mScrollSound;
 	ImageSource mImageSource;
 	std::function<void(CursorState state)> mCursorChangedCallback;
 };
@@ -345,6 +348,9 @@ void ImageGridComponent<T>::applyTheme(const std::shared_ptr<ThemeData>& theme, 
 				}
 			}
 		}
+
+		if (elem->has("scrollSound"))
+			mScrollSound = elem->get<std::string>("scrollSound");
 	}
 
 	// We still need to manually get the grid tile size here,

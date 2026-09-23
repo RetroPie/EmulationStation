@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include <pugixml/src/pugixml.hpp>
+#include <pugixml.hpp>
 
 class FileData;
 class FileFilterIndex;
@@ -76,6 +76,7 @@ public:
 
 	FileFilterIndex* getIndex() { return mFilterIndex; };
 	void onMetaDataSavePoint();
+	void setShuffledCacheDirty();
 
 private:
 	static SystemData* loadSystem(pugi::xml_node system);

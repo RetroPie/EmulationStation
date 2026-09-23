@@ -605,13 +605,13 @@ namespace Utils
 			if(!exists(path))
 				return true;
 
-			bool removed = (unlink(path.c_str()) == 0);
-			
-			// if removed, let's remove it from the index
-			if (removed)
-				pathExistsIndex[_path] = false;
-
 			// try to remove file
+			bool removed = (unlink(path.c_str()) == 0);
+			if (removed)
+			{
+				const std::unique_lock<std::recursive_mutex> lock(mutex);
+				pathExistsIndex[_path] = false;
+			}
 			return removed;
 
 		} // removeFile
@@ -629,6 +629,7 @@ namespace Utils
 			// try to create directory
 			if(mkdir(path.c_str(), 0755) == 0)
 			{
+				const std::unique_lock<std::recursive_mutex> lock(mutex);
 				pathExistsIndex[_path] = true;
 				return true;
 			}
@@ -642,9 +643,11 @@ namespace Utils
 
 			// try to create directory again now that the parent should exist
 			bool created = (mkdir(path.c_str(), 0755) == 0);
-			if(created)
+			if (created)
+			{
+				const std::unique_lock<std::recursive_mutex> lock(mutex);
 				pathExistsIndex[_path] = true;
-
+			}
 			return created;
 
 		} // createDirectory
@@ -653,17 +656,27 @@ namespace Utils
 
 		bool exists(const std::string& _path)
 		{
-			const std::unique_lock<std::recursive_mutex> lock(mutex);
-
-			if(pathExistsIndex.find(_path) == pathExistsIndex.cend())
+			// Fast path: return cached result without doing any I/O.
 			{
-				const std::string path = getGenericPath(_path);
-				struct stat64 info;
-				// check if stat64 succeeded
-				pathExistsIndex[_path] = (stat64(path.c_str(), &info) == 0);
+				const std::unique_lock<std::recursive_mutex> lock(mutex);
+				auto it = pathExistsIndex.find(_path);
+				if (it != pathExistsIndex.cend())
+					return it->second;
 			}
 
-			return pathExistsIndex.at(_path);
+			// Slow path: stat outside the lock so a blocking NAS call on the
+			// background texture-loader thread doesn't stall the main thread
+			// when it tries to acquire the same mutex (e.g. Scripting::fireEvent).
+			const std::string path = getGenericPath(_path);
+			struct stat64 info;
+			bool result = (stat64(path.c_str(), &info) == 0);
+
+			{
+				const std::unique_lock<std::recursive_mutex> lock(mutex);
+				pathExistsIndex[_path] = result;
+			}
+
+			return result;
 
 		} // exists
 

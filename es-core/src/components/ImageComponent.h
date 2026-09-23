@@ -23,8 +23,13 @@ public:
 	//Use an already existing texture.
 	void setImage(const std::shared_ptr<TextureResource>& texture);
 
+	//Loads the image asynchronously in a background thread. The image will fade in when ready.
+	void setImageAsync(std::string path, bool tile = false);
+
 	void onSizeChanged() override;
 	void setOpacity(unsigned char opacity) override;
+
+	void update(int deltaTime) override;
 
 	// Resize the image to fit this size. If one axis is zero, scale that axis to maintain aspect ratio.
 	// If both are non-zero, potentially break the aspect ratio.  If both are zero, no resizing.
@@ -77,6 +82,7 @@ public:
 	virtual std::vector<HelpPrompt> getHelpPrompts() override;
 
 	std::shared_ptr<TextureResource> getTexture() { return mTexture; };
+	bool isAsyncPending() const { return mAsyncPending; };
 private:
 	Vector2f mTargetSize;
 
@@ -97,6 +103,7 @@ private:
 	bool mColorGradientHorizontal;
 
 	std::string mDefaultPath;
+	std::string mTexturePath;
 
 	std::shared_ptr<TextureResource> mTexture;
 	unsigned char			mFadeOpacity;
@@ -104,6 +111,8 @@ private:
 	bool					mForceLoad;
 	bool					mDynamic;
 	bool					mRotateByTargetSize;
+	bool					mAsyncPending;
+	int						mAsyncStartTime;
 
 	Vector2f mTopLeftCrop;
 	Vector2f mBottomRightCrop;

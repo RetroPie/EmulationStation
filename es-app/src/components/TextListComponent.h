@@ -30,12 +30,16 @@ protected:
 	using IList<TextListData, T>::getTransform;
 	using IList<TextListData, T>::mSize;
 	using IList<TextListData, T>::mCursor;
+	using IList<TextListData, T>::mViewportTop;
 	using IList<TextListData, T>::mEntry;
 
 public:
 	using IList<TextListData, T>::size;
 	using IList<TextListData, T>::isScrolling;
 	using IList<TextListData, T>::stopScrolling;
+
+	// flag to re-evaluate list cursor position in visible list section
+	static constexpr int REFRESH_LIST_CURSOR_POS = -1;
 
 	TextListComponent(Window* window);
 
@@ -56,6 +60,7 @@ public:
 	inline void setAlignment(Alignment align) { mAlignment = align; }
 
 	inline void setCursorChangedCallback(const std::function<void(CursorState state)>& func) { mCursorChangedCallback = func; }
+	inline void setFavoriteIndicatorCallback(const std::function<bool(const T&)>& func) { mFavoriteIndicatorCallback = func; }
 
 	inline void setFont(const std::shared_ptr<Font>& font)
 	{
@@ -92,7 +97,7 @@ private:
 	Alignment mAlignment;
 	float mHorizontalMargin;
 
-	int getFirstVisibleEntry();
+	int viewportTop();
 	std::function<void(CursorState state)> mCursorChangedCallback;
 
 	std::shared_ptr<Font> mFont;
@@ -105,19 +110,20 @@ private:
 	bool mSelectorColorGradientHorizontal = true;
 	unsigned int mSelectedColor;
 	std::string mScrollSound;
+	std::function<bool(const T&)> mFavoriteIndicatorCallback;
 	static const unsigned int COLOR_ID_COUNT = 2;
 	unsigned int mColors[COLOR_ID_COUNT];
-	unsigned int mScreenCount;
-	int mStartEntry = 0;
-	unsigned int mCursorPrev = -1;
-	bool mOneEntryUpDn = true;
+	int mViewportHeight;
+	int mCursorPrev = -1;
 
 	ImageComponent mSelectorImage;
+	ImageComponent mFavoriteIcon;
+	bool mFavoriteIconVisible;
 };
 
 template <typename T>
 TextListComponent<T>::TextListComponent(Window* window) :
-	IList<TextListData, T>(window), mSelectorImage(window)
+	IList<TextListData, T>(window), mSelectorImage(window), mFavoriteIcon(window)
 {
 	mMarqueeOffset = 0;
 	mMarqueeOffset2 = 0;
@@ -137,6 +143,9 @@ TextListComponent<T>::TextListComponent(Window* window) :
 	mSelectedColor = 0;
 	mColors[0] = 0x0000FFFF;
 	mColors[1] = 0x00FF00FF;
+
+	mFavoriteIcon.setImage(":/heart_filled.svg");
+	mFavoriteIconVisible = true;
 }
 
 template <typename T>
@@ -151,32 +160,34 @@ void TextListComponent<T>::render(const Transform4x4f& parentTrans)
 
 	const float entrySize = Math::max(font->getHeight(1.0), (float)font->getSize()) * mLineSpacing;
 
-	// number of entries that can fit on the screen simultaniously
-	mScreenCount = (int)(mSize.y() / entrySize);
+	// number of listentries that can fit on the screen
+	mViewportHeight = (int)(mSize.y() / entrySize);
 
+	if(mViewportTop == REFRESH_LIST_CURSOR_POS)
+	{
+		// returning from screen saver activated game launch or screensaver press 'A'
+		mViewportTop = mCursor - mViewportHeight/2;
+		mCursorPrev = -1; // reset to pristine to calc viewportTop() right when jumping to game with 'A' pressed
+	}
 	if(mCursor != mCursorPrev)
 	{
-		mStartEntry = (size() > mScreenCount) ? getFirstVisibleEntry() : 0;
+		mViewportTop = (size() > mViewportHeight) ? viewportTop() : 0;
 		mCursorPrev = mCursor;
 	}
 
-	unsigned int listCutoff = mStartEntry + mScreenCount;
+	unsigned int listCutoff = mViewportTop + mViewportHeight;
 	if(listCutoff > size())
 		listCutoff = size();
 
-	float y = (mSize.y() - (mScreenCount * entrySize)) * 0.5f;
+	float y = (mSize.y() - (mViewportHeight * entrySize)) * 0.5f;
 
-	// draw selector bar
-	if(mStartEntry < listCutoff)
-	{
-		if (mSelectorImage.hasImage()) {
-			mSelectorImage.setPosition(0.f, y + (mCursor - mStartEntry)*entrySize + mSelectorOffsetY, 0.f);
-			mSelectorImage.render(trans);
-		} else {
-			Renderer::setMatrix(trans);
-			Renderer::drawRect(0.0f, y + (mCursor - mStartEntry)*entrySize + mSelectorOffsetY, mSize.x(),
-					mSelectorHeight, mSelectorColor, mSelectorColorEnd, mSelectorColorGradientHorizontal);
-		}
+	if (mSelectorImage.hasImage()) {
+		mSelectorImage.setPosition(0.f, y + (mCursor - mViewportTop)*entrySize + mSelectorOffsetY, 0.f);
+		mSelectorImage.render(trans);
+	} else {
+		Renderer::setMatrix(trans);
+		Renderer::drawRect(0.0f, y + (mCursor - mViewportTop)*entrySize + mSelectorOffsetY, mSize.x(),
+			mSelectorHeight, mSelectorColor, mSelectorColorEnd, mSelectorColorGradientHorizontal);
 	}
 
 	// clip to inside margins
@@ -185,7 +196,7 @@ void TextListComponent<T>::render(const Transform4x4f& parentTrans)
 	Renderer::pushClipRect(Vector2i((int)(trans.translation().x() + mHorizontalMargin), (int)trans.translation().y()),
 		Vector2i((int)(dim.x() - mHorizontalMargin*2), (int)dim.y()));
 
-	for(int i = mStartEntry; i < listCutoff; i++)
+	for(int i = mViewportTop; i < listCutoff; i++)
 	{
 		typename IList<TextListData, T>::Entry& entry = mEntries.at((unsigned int)i);
 
@@ -200,6 +211,12 @@ void TextListComponent<T>::render(const Transform4x4f& parentTrans)
 
 		entry.data.textCache->setColor(color);
 
+		const bool showFavorite = mFavoriteIconVisible && mFavoriteIcon.hasImage() && (mFavoriteIndicatorCallback ? mFavoriteIndicatorCallback(entry.object) : false);
+		const float iconSize = entrySize * 0.60f;
+		const float iconGap = showFavorite ? (iconSize * 0.35f) : 0.0f;
+		const float textWidth = entry.data.textCache->metrics.size.x();
+		const float lineWidth = showFavorite ? (iconSize + iconGap + textWidth) : textWidth;
+
 		Vector3f offset(0, y, 0);
 
 		switch(mAlignment)
@@ -208,26 +225,41 @@ void TextListComponent<T>::render(const Transform4x4f& parentTrans)
 			offset[0] = mHorizontalMargin;
 			break;
 		case ALIGN_CENTER:
-			offset[0] = (int)((mSize.x() - entry.data.textCache->metrics.size.x()) / 2);
+			offset[0] = (int)((mSize.x() - lineWidth) / 2);
 			if(offset[0] < mHorizontalMargin)
 				offset[0] = mHorizontalMargin;
 			break;
 		case ALIGN_RIGHT:
-			offset[0] = (mSize.x() - entry.data.textCache->metrics.size.x());
+			offset[0] = (mSize.x() - lineWidth);
 			offset[0] -= mHorizontalMargin;
 			if(offset[0] < mHorizontalMargin)
 				offset[0] = mHorizontalMargin;
 			break;
 		}
 
+		float rowScrollOffset = 0.0f;
+		if((mCursor == i) && (mMarqueeOffset > 0))
+			rowScrollOffset = (float)mMarqueeOffset;
+
+		if(showFavorite)
+		{
+			Transform4x4f iconTrans = trans;
+			iconTrans.translate(offset - Vector3f(rowScrollOffset, 0, 0));
+			mFavoriteIcon.setPosition(0, (entrySize - iconSize) * 0.5f, 0);
+			mFavoriteIcon.setResize(iconSize, iconSize);
+			mFavoriteIcon.render(iconTrans);
+		}
+
+		Vector3f textOffset = offset + Vector3f(showFavorite ? (iconSize + iconGap) : 0.0f, 0, 0);
+
 		// render text
 		Transform4x4f drawTrans = trans;
 
 		// currently selected item text might be scrolling
 		if((mCursor == i) && (mMarqueeOffset > 0))
-			drawTrans.translate(offset - Vector3f((float)mMarqueeOffset, 0, 0));
+			drawTrans.translate(textOffset - Vector3f((float)mMarqueeOffset, 0, 0));
 		else
-			drawTrans.translate(offset);
+			drawTrans.translate(textOffset);
 
 		Renderer::setMatrix(drawTrans);
 		font->renderTextCache(entry.data.textCache.get());
@@ -236,8 +268,16 @@ void TextListComponent<T>::render(const Transform4x4f& parentTrans)
 		// marquee is scrolled far enough for it to repeat
 		if((mCursor == i) && (mMarqueeOffset2 < 0))
 		{
+			// also render the favorite icon alongside the wrap-around copy of the text
+			if(showFavorite)
+			{
+				Transform4x4f iconTrans2 = trans;
+				iconTrans2.translate(offset - Vector3f((float)mMarqueeOffset2, 0, 0));
+				mFavoriteIcon.render(iconTrans2);
+			}
+
 			drawTrans = trans;
-			drawTrans.translate(offset - Vector3f((float)mMarqueeOffset2, 0, 0));
+			drawTrans.translate(textOffset - Vector3f((float)mMarqueeOffset2, 0, 0));
 			Renderer::setMatrix(drawTrans);
 			font->renderTextCache(entry.data.textCache.get());
 		}
@@ -254,91 +294,65 @@ void TextListComponent<T>::render(const Transform4x4f& parentTrans)
 
 
 template <typename T>
-int TextListComponent<T>::getFirstVisibleEntry()
+int TextListComponent<T>::viewportTop()
 {
-	if (mCursorPrev == -1)
-	{
-		// init or returned from emulator
-		mCursorPrev = mCursor;
-		int quot = div(mCursor, mScreenCount).quot;
-		mStartEntry = quot * mScreenCount;
-	}
-	int screenRelCursor = mCursorPrev - mStartEntry;
-	bool cursorCentered = screenRelCursor == mScreenCount/2;
-	int visibleEntryMax = size() - mScreenCount;
-	int firstVisibleEntry = 0;
+	int viewportTopMax = size() - mViewportHeight;
+	int topNew = mViewportTop;
 
-	if(Settings::getInstance()->getBool("UseFullscreenPaging") && !cursorCentered)
+	if (mCursorPrev == -1)
+		mCursorPrev = mCursor;
+
+	int delta = mCursor - mCursorPrev;
+
+	if(Settings::getInstance()->getBool("UseFullscreenPaging"))
 	{
-		// keep visible cursor constant but move visible list (default)
-		firstVisibleEntry = mCursor - screenRelCursor;
-		if(mOneEntryUpDn)
+		// delta may be greater/less than +/-mViewportHeight on re-sorting of list
+		if (delta <= -mViewportHeight || delta >= mViewportHeight
+			// keep cursor sticky at position unless the user navigates
+			// to the middle of the viewport
+			|| delta < 0 && mCursor - mViewportTop < mViewportHeight/2
+			|| delta > 0 && mCursor - mViewportTop > mViewportHeight/2)
 		{
-			int delta = mCursor - mCursorPrev;
-			// detect rollover (== delta is more than one item)
-			if(delta < -3)
-				firstVisibleEntry = 0;
-			else if(delta > 3)
-				firstVisibleEntry = visibleEntryMax;
-			else if(screenRelCursor < mScreenCount/2 && delta > 0 /*down pressed*/
-				|| screenRelCursor > mScreenCount/2 && delta < 0 /*up pressed*/)
-				// cases for list begin / list end
-				// move visible cursor and keep visible list section constant
-				firstVisibleEntry = firstVisibleEntry - delta;
+			topNew += delta;
 		}
-	} else {
-		// cursor always in middle of visible list
-		firstVisibleEntry = mCursor - mScreenCount/2;
+		// no match above will place the cursor more towards the middle
 	}
-	// bounds check
-	if(firstVisibleEntry < 0)
-		firstVisibleEntry = 0;
-	else if(firstVisibleEntry > visibleEntryMax)
-		firstVisibleEntry = visibleEntryMax;
-	return firstVisibleEntry;
+	else
+		// put cursor in middle of visible list
+		topNew = mCursor - mViewportHeight/2;
+
+	if (mCursor <= mViewportHeight/2)
+		topNew = 0;
+	else if (mCursor >= viewportTopMax + mViewportHeight/2)
+		topNew = viewportTopMax;
+
+	return topNew;
 }
 
 template <typename T>
 bool TextListComponent<T>::input(InputConfig* config, Input input)
 {
-	if(size() > 0)
+	bool isSingleStep = config->isMappedLike("down", input) || config->isMappedLike("up", input);
+	bool isPageStep = config->isMappedLike("rightshoulder", input) || config->isMappedLike("leftshoulder", input);
+
+	if(size() > 0 && (isSingleStep || isPageStep))
 	{
 		if(input.value != 0)
 		{
-			if(config->isMappedLike("down", input))
+			int delta;
+			mCursorPrev = mCursor;
+			if(isSingleStep)
+				delta = config->isMappedLike("down", input) ? 1 : -1;
+			else
 			{
-				listInput(1);
-				mOneEntryUpDn = true;
-				return true;
+				delta = Settings::getInstance()->getBool("UseFullscreenPaging") ? mViewportHeight : 10;
+				if (config->isMappedLike("leftshoulder", input))
+					delta = -delta;
 			}
-
-			if(config->isMappedLike("up", input))
-			{
-				listInput(-1);
-				mOneEntryUpDn = true;
-				return true;
-			}
-			if(config->isMappedLike("rightshoulder", input))
-			{
-				int delta = Settings::getInstance()->getBool("UseFullscreenPaging") ? mScreenCount : 10;
-				listInput(delta);
-				mOneEntryUpDn = false;
-				return true;
-			}
-
-			if(config->isMappedLike("leftshoulder", input))
-			{
-				int delta = Settings::getInstance()->getBool("UseFullscreenPaging") ? mScreenCount : 10;
-				listInput(-delta);
-				mOneEntryUpDn = false;
-				return true;
-			}
+			listInput(delta);
+			return true;
 		}else{
-			if(config->isMappedLike("down", input) || config->isMappedLike("up", input) ||
-				config->isMappedLike("rightshoulder", input) || config->isMappedLike("leftshoulder", input))
-			{
-				stopScrolling();
-			}
+			stopScrolling();
 		}
 	}
 
@@ -414,6 +428,11 @@ void TextListComponent<T>::onCursorChanged(const CursorState& state)
 template <typename T>
 void TextListComponent<T>::applyTheme(const std::shared_ptr<ThemeData>& theme, const std::string& view, const std::string& element, unsigned int properties)
 {
+	if(Settings::getInstance()->getBool("UseFullscreenPaging"))
+	{
+		mViewportTop = REFRESH_LIST_CURSOR_POS;
+	}
+
 	GuiComponent::applyTheme(theme, view, element, properties);
 
 	const ThemeData::ThemeElement* elem = theme->getElement(view, element, "textlist");
@@ -497,6 +516,21 @@ void TextListComponent<T>::applyTheme(const std::shared_ptr<ThemeData>& theme, c
 		mSelectorImage.setColorShiftEnd(mSelectorColorEnd);
 	} else {
 		mSelectorImage.setImage("");
+	}
+
+	if (elem->has("favoriteIconPath"))
+		mFavoriteIcon.setImage(elem->get<std::string>("favoriteIconPath"));
+	else
+		mFavoriteIcon.setImage(":/heart_filled.svg");
+
+	if (elem->has("favoriteIconColor"))
+		mFavoriteIcon.setColorShift(elem->get<unsigned int>("favoriteIconColor"));
+	else
+		mFavoriteIcon.setColorShift(0xFFFFFFFF);
+
+	{
+		std::string var = theme->getVariable("favoriteIconVisible");
+		mFavoriteIconVisible = (var == "true");
 	}
 }
 

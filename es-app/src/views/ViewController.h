@@ -28,7 +28,7 @@ public:
 	// the current gamelist view (as it may change to be detailed).
 	void reloadGameListView(IGameListView* gamelist, bool reloadTheme = false);
 	inline void reloadGameListView(SystemData* system, bool reloadTheme = false) { reloadGameListView(getGameListView(system).get(), reloadTheme); }
-	void reloadAll(); // Reload everything with a theme.  Used when the "ThemeSet" setting changes.
+	void reloadAll(bool themeChanged = false); // Reload everything with a theme.  When the "ThemeSet" setting changes, themeChanged is true.
 
 	// Navigation.
 	void goToNextGameList();
@@ -64,6 +64,8 @@ public:
 		GRID,
 		VIDEO
 	};
+
+	ViewController::GameListViewType getGameListViewType();
 
 	struct State
 	{

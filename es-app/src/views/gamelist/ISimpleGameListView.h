@@ -23,12 +23,12 @@ public:
 	virtual void onThemeChanged(const std::shared_ptr<ThemeData>& theme) override;
 
 	virtual FileData* getCursor() override = 0;
-	virtual void setCursor(FileData*) override = 0;
+	virtual void setCursor(FileData*, bool refreshListCursorPos = false) override = 0;
+	virtual int getViewportTop() override = 0;
+	virtual void setViewportTop(int index) override = 0;
 
 	virtual bool input(InputConfig* config, Input input) override;
 	virtual void launch(FileData* game) override = 0;
-
-	static const int DOUBLE_PRESS_DETECTION_DURATION = 1500; // millis
 
 protected:
 	static const int DESCRIPTION_SCROLL_DELAY = 5 * 1000; // five secs
@@ -44,10 +44,6 @@ protected:
 	std::vector<GuiComponent*> mThemeExtras;
 
 	std::stack<FileData*> mCursorStack;
-
-private:
-	int getPressCountInDuration();
-	Uint32 firstPressMs = 0;
 };
 
 #endif // ES_APP_VIEWS_GAME_LIST_ISIMPLE_GAME_LIST_VIEW_H

@@ -13,6 +13,9 @@ BasicGameListView::BasicGameListView(Window* window, FileData* root)
 	mList.setSize(mSize.x(), mSize.y() * 0.8f);
 	mList.setPosition(0, mSize.y() * 0.2f);
 	mList.setDefaultZIndex(20);
+	mList.setFavoriteIndicatorCallback([](FileData* file) {
+		return file != nullptr && file->getType() == GAME && file->metadata.get("favorite") == "true";
+	});
 	addChild(&mList);
 
 	populateList(root->getChildrenListToDisplay());
@@ -61,12 +64,19 @@ FileData* BasicGameListView::getCursor()
 	return mList.getSelected();
 }
 
-void BasicGameListView::setCursor(FileData* cursor)
+void BasicGameListView::setCursor(FileData* cursor, bool refreshListCursorPos)
 {
-	if(!mList.setCursor(cursor) && (!cursor->isPlaceHolder()))
+	if (refreshListCursorPos)
+		setViewportTop(mList.REFRESH_LIST_CURSOR_POS);
+
+	bool notInList = !mList.setCursor(cursor);
+	if(!refreshListCursorPos && notInList && !cursor->isPlaceHolder())
 	{
 		populateList(cursor->getParent()->getChildrenListToDisplay());
-		mList.setCursor(cursor);
+		// this extra call is needed iff a system has games organized in folders
+		// and the cursor is focusing a game in a folder
+		if (cursor->getParent()->getType() == FOLDER)
+			mList.setCursor(cursor);
 
 		// update our cursor stack in case our cursor just got set to some folder we weren't in before
 		if(mCursorStack.empty() || mCursorStack.top() != cursor->getParent())
@@ -88,6 +98,17 @@ void BasicGameListView::setCursor(FileData* cursor)
 			}
 		}
 	}
+}
+
+void BasicGameListView::setViewportTop(int index)
+{
+	mList.setViewportTop(index);
+}
+
+
+int BasicGameListView::getViewportTop()
+{
+	return mList.getViewportTop();
 }
 
 void BasicGameListView::addPlaceholder()

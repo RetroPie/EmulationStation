@@ -17,6 +17,7 @@
 #include "Window.h"
 #include <assert.h>
 
+
 FileData::FileData(FileType type, const std::string& path, SystemEnvironmentData* envData, SystemData* system)
 	: mType(type), mPath(path), mSystem(system), mEnvData(envData), mSourceFileData(NULL), mParent(NULL), metadata(type == GAME ? GAME_METADATA : FOLDER_METADATA) // metadata is REALLY set in the constructor!
 {
@@ -364,7 +365,15 @@ void CollectionFileData::refreshMetadata()
 const std::string& CollectionFileData::getName()
 {
 	if (mDirty) {
-		mCollectionFileName = Utils::String::removeParenthesis(mSourceFileData->metadata.get("name"));
+        bool bCollectionsShowParenthesisData = Settings::getInstance()->getBool("CollectionsShowParenthesisData");
+        
+        if (not bCollectionsShowParenthesisData) {
+            mCollectionFileName = Utils::String::removeParenthesis(mSourceFileData->metadata.get("name"));
+        }
+        else {
+            mCollectionFileName = mSourceFileData->metadata.get("name");
+        }  
+
 		mCollectionFileName += " [" + Utils::String::toUpper(mSourceFileData->getSystem()->getName()) + "]";
 		mDirty = false;
 	}

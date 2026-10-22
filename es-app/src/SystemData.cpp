@@ -10,7 +10,9 @@
 #include "Settings.h"
 #include "ThemeData.h"
 #include "views/UIModeController.h"
+#include <atomic>
 #include <fstream>
+#include <mutex>
 #include <random>
 #include "utils/StringUtil.h"
 #include "utils/ThreadPool.h"
@@ -321,16 +323,31 @@ bool SystemData::loadConfig(Window* window)
 		pThreadPool->queueWorkItem([] { CollectionSystemManager::get()->loadCollectionSystems(true); });
 	}
 
-	int processedSystem = 0;
+	std::atomic<int> processedSystem(0);
+	std::vector<bool> activeSystems;
+	std::mutex activeSystemsMutex;
+	if (pThreadPool != NULL)
+		activeSystems.assign(systemCount, false);
 
 	for (pugi::xml_node system = systemList.child("system"); system; system = system.next_sibling("system"))
 	{
 		if (pThreadPool != NULL)
 		{
-			pThreadPool->queueWorkItem([system, currentSystem, systems, &processedSystem]
+			pThreadPool->queueWorkItem([system, currentSystem, systems, &processedSystem, &activeSystems, &activeSystemsMutex]
 			{
+				{
+					std::lock_guard<std::mutex> lock(activeSystemsMutex);
+					activeSystems[currentSystem] = true;
+				}
+
 				systems[currentSystem] = loadSystem(system);
-				processedSystem++;
+
+				{
+					std::lock_guard<std::mutex> lock(activeSystemsMutex);
+					activeSystems[currentSystem] = false;
+				}
+
+				processedSystem.fetch_add(1);
 			});
 		}
 		else
@@ -354,11 +371,27 @@ bool SystemData::loadConfig(Window* window)
 	{
 		if (window != NULL)
 		{
-			pThreadPool->wait([window, &processedSystem, systemCount, &systemsNames]
+			pThreadPool->wait([window, &processedSystem, systemCount, &systemsNames, &activeSystems, &activeSystemsMutex]
 			{
-				int px = processedSystem - 1;
-				if (px >= 0 && px < systemsNames.size())
-					window->renderLoadingScreen(systemsNames.at(px), (float)px / (float)(systemCount + 1));
+				std::string activeText;
+				{
+					std::lock_guard<std::mutex> lock(activeSystemsMutex);
+					for (size_t i = 0; i < activeSystems.size(); i++)
+					{
+						if (!activeSystems[i])
+							continue;
+
+						if (!activeText.empty())
+							activeText += ", ";
+						activeText += systemsNames.at(i);
+					}
+				}
+
+				if (activeText.empty())
+					activeText = "Loading systems...";
+
+				const int completed = processedSystem.load();
+				window->renderLoadingScreen(activeText, systemCount == 0 ? 0 : (float)completed / (float)systemCount);
 			}, 10);
 		}
 		else
@@ -375,14 +408,14 @@ bool SystemData::loadConfig(Window* window)
 		delete pThreadPool;
 
 		if (window != NULL)
-			window->renderLoadingScreen("Favorites", systemCount == 0 ? 0 : currentSystem / systemCount);
+			window->renderLoadingScreen("Favorites", 1.0f);
 
 		CollectionSystemManager::get()->updateSystemsList();
 	}
 	else
 	{
 		if (window != NULL)
-			window->renderLoadingScreen("Favorites", systemCount == 0 ? 0 : currentSystem / systemCount);
+			window->renderLoadingScreen("Favorites", 1.0f);
 
 		CollectionSystemManager::get()->loadCollectionSystems();
 	}

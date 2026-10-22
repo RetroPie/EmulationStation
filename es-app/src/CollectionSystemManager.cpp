@@ -75,6 +75,7 @@ CollectionSystemManager::~CollectionSystemManager()
 		}
 		delete it->second.system;
 	}
+
 	sInstance = NULL;
 }
 

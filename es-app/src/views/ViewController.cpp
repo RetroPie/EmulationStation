@@ -359,45 +359,47 @@ std::shared_ptr<IGameListView> ViewController::getGameListView(SystemData* syste
 	//if we didn't, make it, remember it, and return it
 	std::shared_ptr<IGameListView> view;
 
-	bool themeHasVideoView = system->getTheme()->hasView("video");
-
-	//decide type
-	GameListViewType selectedViewType = getGameListViewType();
-
-	if (selectedViewType == AUTOMATIC)
 	{
-		std::vector<FileData*> files = system->getRootFolder()->getFilesRecursive(GAME | FOLDER);
-		for (auto it = files.cbegin(); it != files.cend(); it++)
+		bool themeHasVideoView = system->getTheme()->hasView("video");
+
+		//decide type
+		GameListViewType selectedViewType = getGameListViewType();
+
+		if (selectedViewType == AUTOMATIC)
 		{
-			if (themeHasVideoView && !(*it)->getVideoPath().empty())
+			std::vector<FileData*> files = system->getRootFolder()->getFilesRecursive(GAME | FOLDER);
+			for (auto it = files.cbegin(); it != files.cend(); it++)
 			{
-				selectedViewType = VIDEO;
-				break;
-			}
-			else if (!(*it)->getThumbnailPath().empty())
-			{
-				selectedViewType = DETAILED;
-				// Don't break out in case any subsequent files have video
+				if (themeHasVideoView && !(*it)->getVideoPath().empty())
+				{
+					selectedViewType = VIDEO;
+					break;
+				}
+				else if (!(*it)->getThumbnailPath().empty())
+				{
+					selectedViewType = DETAILED;
+					// Don't break out in case any subsequent files have video
+				}
 			}
 		}
-	}
 
-	// Create the view
-	switch (selectedViewType)
-	{
-		case VIDEO:
-			view = std::shared_ptr<IGameListView>(new VideoGameListView(mWindow, system->getRootFolder()));
-			break;
-		case DETAILED:
-			view = std::shared_ptr<IGameListView>(new DetailedGameListView(mWindow, system->getRootFolder()));
-			break;
-		case GRID:
-			view = std::shared_ptr<IGameListView>(new GridGameListView(mWindow, system->getRootFolder()));
-			break;
-		case BASIC:
-		default:
-			view = std::shared_ptr<IGameListView>(new BasicGameListView(mWindow, system->getRootFolder()));
-			break;
+		// Create the view
+		switch (selectedViewType)
+		{
+			case VIDEO:
+				view = std::shared_ptr<IGameListView>(new VideoGameListView(mWindow, system->getRootFolder()));
+				break;
+			case DETAILED:
+				view = std::shared_ptr<IGameListView>(new DetailedGameListView(mWindow, system->getRootFolder()));
+				break;
+			case GRID:
+				view = std::shared_ptr<IGameListView>(new GridGameListView(mWindow, system->getRootFolder()));
+				break;
+			case BASIC:
+			default:
+				view = std::shared_ptr<IGameListView>(new BasicGameListView(mWindow, system->getRootFolder()));
+				break;
+		}
 	}
 
 	view->setTheme(system->getTheme());

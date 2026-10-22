@@ -219,6 +219,9 @@ void Window::render()
 		bottom->render(transform);
 		if(bottom != top)
 		{
+			// Render any intermediate GUIs (e.g. a search popup behind a menu)
+			for(auto it = mGuiStack.begin() + 1; it != mGuiStack.end() - 1; ++it)
+				(*it)->render(transform);
 			mBackgroundOverlay->render(transform);
 			top->render(transform);
 		}

@@ -1,6 +1,10 @@
 #include "views/gamelist/ISimpleGameListView.h"
 
+#include "components/ImageComponent.h"
+#include "components/TextComponent.h"
+#include "guis/GuiSearchPopup.h"
 #include "views/UIModeController.h"
+#include "Window.h"
 #include "views/ViewController.h"
 #include "CollectionSystemManager.h"
 #include "Scripting.h"
@@ -156,6 +160,10 @@ bool ISimpleGameListView::input(InputConfig* config, Input input)
 					return true;
 				}
 			}
+		}else if (config->isMappedTo("righttrigger", input) && !UIModeController::getInstance()->isUIModeKid())
+		{
+			mWindow->pushGui(new GuiSearchPopup(mWindow, mRoot->getSystem()));
+			return true;
 		}
 	}
 

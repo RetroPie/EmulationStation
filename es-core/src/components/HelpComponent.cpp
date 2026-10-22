@@ -24,9 +24,12 @@ static const std::map<std::string, const char*> ICON_PATH_MAP {
 	{ "y", ":/help/button_y.svg" },
 	{ "l", ":/help/button_l.svg" },
 	{ "r", ":/help/button_r.svg" },
+	{ "lt", ":/help/button_lt.svg" },
+	{ "rt", ":/help/button_rt.svg" },
 	{ "lr", ":/help/button_lr.svg" },
 	{ "start", ":/help/button_start.svg" },
-	{ "select", ":/help/button_select.svg" }
+	{ "select", ":/help/button_select.svg" },
+	{ "esc", ":/help/button_esc_key.svg" }
 };
 
 HelpComponent::HelpComponent(Window* window) : GuiComponent(window)
@@ -108,10 +111,7 @@ std::shared_ptr<TextureResource> HelpComponent::getIconTexture(const char* name)
 
 	auto pathLookup = ICON_PATH_MAP.find(name);
 	if(pathLookup == ICON_PATH_MAP.cend())
-	{
-		LOG(LogError) << "Unknown help icon \"" << name << "\"!";
-		return nullptr;
-	}
+		return nullptr; // unknown name: text-only prompt, no icon
 	if(!ResourceManager::getInstance()->fileExists(pathLookup->second))
 	{
 		LOG(LogError) << "Help icon \"" << name << "\" - corresponding image file \"" << pathLookup->second << "\" misisng!";

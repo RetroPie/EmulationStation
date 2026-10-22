@@ -2,6 +2,7 @@
 
 #include "animations/LambdaAnimation.h"
 #include "guis/GuiMsgBox.h"
+#include "guis/GuiSearchPopup.h"
 #include "views/UIModeController.h"
 #include "views/ViewController.h"
 #include "Log.h"
@@ -188,6 +189,11 @@ bool SystemView::input(InputConfig* config, Input input)
 			// get random system
 			// go to system
 			setCursor(SystemData::getRandomSystem());
+			return true;
+		}
+		if (config->isMappedTo("righttrigger", input))
+		{
+			mWindow->pushGui(new GuiSearchPopup(mWindow, nullptr));
 			return true;
 		}
 	}else{
@@ -382,6 +388,7 @@ std::vector<HelpPrompt> SystemView::getHelpPrompts()
 		prompts.push_back(HelpPrompt("left/right", "choose"));
 	prompts.push_back(HelpPrompt("a", "select"));
 	prompts.push_back(HelpPrompt("x", "random"));
+	prompts.push_back(HelpPrompt("rt", "search"));
 
 	if (!UIModeController::getInstance()->isUIModeKid() && Settings::getInstance()->getBool("ScreenSaverControls"))
 		prompts.push_back(HelpPrompt("select", "launch screensaver"));

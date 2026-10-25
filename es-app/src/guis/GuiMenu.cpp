@@ -398,6 +398,12 @@ void GuiMenu::openUISettings()
 	s->addWithLabel("DISABLE START MENU IN KID MODE", disable_start);
 	s->addSaveFunc([disable_start] { Settings::getInstance()->setBool("DisableKidStartMenu", disable_start->getState()); });
 
+	// hide start menu in Kiosk Mode
+	auto disable_kiosk_start = std::make_shared<SwitchComponent>(mWindow);
+	disable_kiosk_start->setState(Settings::getInstance()->getBool("DisableKioskStartMenu"));
+	s->addWithLabel("DISABLE START MENU IN KIOSK MODE", disable_kiosk_start);
+	s->addSaveFunc([disable_kiosk_start] { Settings::getInstance()->setBool("DisableKioskStartMenu", disable_kiosk_start->getState()); });
+
 	mWindow->pushGui(s);
 
 }

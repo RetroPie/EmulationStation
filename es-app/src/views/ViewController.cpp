@@ -425,13 +425,20 @@ std::shared_ptr<SystemView> ViewController::getSystemListView()
 }
 
 
+static bool isStartMenuDisabled()
+{
+	UIModeController* uiMode = UIModeController::getInstance();
+	return (uiMode->isUIModeKid() && Settings::getInstance()->getBool("DisableKidStartMenu")) ||
+		(uiMode->isUIModeKiosk() && Settings::getInstance()->getBool("DisableKioskStartMenu"));
+}
+
 bool ViewController::input(InputConfig* config, Input input)
 {
 	if(mLockInput)
 		return true;
 
 	// open menu
-	if(!(UIModeController::getInstance()->isUIModeKid() && Settings::getInstance()->getBool("DisableKidStartMenu")) && config->isMappedTo("start", input) && input.value != 0)
+	if(!isStartMenuDisabled() && config->isMappedTo("start", input) && input.value != 0)
 	{
 		// open menu
 		mWindow->pushGui(new GuiMenu(mWindow));
@@ -612,7 +619,7 @@ std::vector<HelpPrompt> ViewController::getHelpPrompts()
 		return prompts;
 
 	prompts = mCurrentView->getHelpPrompts();
-	if(!(UIModeController::getInstance()->isUIModeKid() && Settings::getInstance()->getBool("DisableKidStartMenu")))
+	if(!isStartMenuDisabled())
 		prompts.push_back(HelpPrompt("start", "menu"));
 
 	return prompts;

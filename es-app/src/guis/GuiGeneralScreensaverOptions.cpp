@@ -25,6 +25,12 @@ GuiGeneralScreensaverOptions::GuiGeneralScreensaverOptions(Window* window, const
 	addWithLabel("SCREENSAVER CONTROLS", ss_controls);
 	addSaveFunc([ss_controls] { Settings::getInstance()->setBool("ScreenSaverControls", ss_controls->getState()); });
 
+	// Opt in: preserve waking with any axis by default.
+	auto ignore_axes = std::make_shared<SwitchComponent>(mWindow);
+	ignore_axes->setState(Settings::getInstance()->getBool("IgnoreUnmappedJoystickAxes"));
+	addWithLabel("IGNORE UNMAPPED JOYSTICK AXES", ignore_axes);
+	addSaveFunc([ignore_axes] { Settings::getInstance()->setBool("IgnoreUnmappedJoystickAxes", ignore_axes->getState()); });
+
 	// screensaver behavior
 	auto screensaver_behavior = std::make_shared< OptionListComponent<std::string> >(mWindow, "SCREENSAVER BEHAVIOR", false);
 	std::vector<std::string> screensavers;

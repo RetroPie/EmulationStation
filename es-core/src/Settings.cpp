@@ -90,6 +90,7 @@ void Settings::setDefaults()
 	mIntMap["ScreenSaverTime"] = 5 * Settings::ONE_MINUTE_IN_MS;
 	mIntMap["SystemSleepTime"] = 0 * Settings::ONE_MINUTE_IN_MS;
 	mBoolMap["SystemSleepTimeHintDisplayed"] = false;
+	mBoolMap["IgnoreUnmappedJoystickAxes"] = false;
 	mIntMap["ScraperResizeWidth"] = 400;
 	mIntMap["ScraperResizeHeight"] = 0;
 	#ifdef _RPI_

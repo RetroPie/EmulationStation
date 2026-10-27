@@ -116,6 +116,19 @@ void Window::textInput(const char* text)
 
 void Window::input(InputConfig* config, Input input)
 {
+	// Some controllers report activity on axes which have no mapped action.
+	// Keep forwarding these to input configuration dialogs, but optionally do
+	// not treat them as activity or wake a screensaver/sleeping window.
+	Input axis = input;
+	axis.value = 0; // Check both directions, including a mapped axis release.
+	if(input.type == TYPE_AXIS && config->isConfigured() &&
+		Settings::getInstance()->getBool("IgnoreUnmappedJoystickAxes") && config->getMappedTo(axis).empty())
+	{
+		if(!mSleeping && !mRenderScreenSaver && peekGui() && peekGui()->input(config, input))
+			mTimeSinceLastInput = 0;
+		return;
+	}
+
 	if (mScreenSaver && mScreenSaver->isScreenSaverActive() && Settings::getInstance()->getBool("ScreenSaverControls")
 		&& mScreenSaver->inputDuringScreensaver(config, input))
 	{

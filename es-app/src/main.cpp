@@ -381,7 +381,7 @@ int main(int argc, char* argv[])
 		{
 			LOG(LogError) << "Unknown error occured while parsing system config file.";
 			if(!scrape_cmdline)
-				Renderer::deinit();
+				window.deinit();
 			return 1;
 		}
 

@@ -86,6 +86,7 @@ private:
 
 	HelpComponent*	mHelp;
 	ImageComponent* mBackgroundOverlay;
+	std::unique_ptr<ImageComponent> mLoadingScreen;
 	ScreenSaver*	mScreenSaver;
 	InfoPopup*	mInfoPopup;
 	bool		mRenderScreenSaver;

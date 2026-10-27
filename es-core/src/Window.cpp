@@ -99,6 +99,8 @@ bool Window::init()
 
 void Window::deinit()
 {
+	mLoadingScreen.reset();
+
 	// Hide all GUI elements on uninitialisation - this disable
 	for(auto i = mGuiStack.cbegin(); i != mGuiStack.cend(); i++)
 	{
@@ -206,6 +208,9 @@ void Window::update(int deltaTime)
 
 void Window::render()
 {
+	// The first regular frame ends the loading phase.
+	mLoadingScreen.reset();
+
 	Transform4x4f transform = Transform4x4f::Identity();
 
 	mRenderedHelpPrompts = false;
@@ -295,9 +300,13 @@ void Window::renderLoadingScreen(std::string text, float percent, unsigned char 
 		Renderer::drawRect(x, y, (w*percent), h, 0x006C9E00 | opacity, 0x006C9E00 | opacity); // 0xFFFFFFFF
 	}
 
-	ImageComponent splash(this, true);
+	if(!mLoadingScreen)
+	{
+		mLoadingScreen.reset(new ImageComponent(this, true));
+		mLoadingScreen->setImage(":/splash.svg");
+	}
+	ImageComponent& splash = *mLoadingScreen;
 	splash.setResize(Renderer::getScreenWidth() * 0.6f, 0.0f);
-	splash.setImage(":/splash.svg");
 	splash.setPosition((Renderer::getScreenWidth() - splash.getSize().x()) / 2, (Renderer::getScreenHeight() - splash.getSize().y()) / 2 * 0.6f);
 	splash.render(trans);
 

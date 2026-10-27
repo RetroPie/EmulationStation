@@ -50,7 +50,12 @@ SystemData::SystemData(const std::string& name, const std::string& fullName, Sys
 		mRootFolder = new FileData(FOLDER, "" + name, mEnvData, this);
 	}
 	setIsGameSystemStatus();
-	loadTheme();
+	// Empty physical systems are discarded by loadSystem(). Collections start
+	// empty and are populated later, so their theme must still be loaded.
+	if(CollectionSystem || !mRootFolder->getChildren().empty())
+		loadTheme();
+	else
+		mTheme = std::make_shared<ThemeData>();
 }
 
 SystemData::~SystemData()

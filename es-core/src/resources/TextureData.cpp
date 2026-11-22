@@ -128,14 +128,19 @@ bool TextureData::load()
 	{
 		std::shared_ptr<ResourceManager>& rm = ResourceManager::getInstance();
 		const ResourceData& data = rm->getFileData(mPath);
-		// is it an SVG?
-		if (mPath.substr(mPath.size() - 4, std::string::npos) == ".svg")
+		if (data.ptr)
 		{
-			mScalable = true;
-			retval = initSVGFromMemory((const unsigned char*)data.ptr.get(), data.length);
+			// is it an SVG?
+			if (mPath.substr(mPath.size() - 4, std::string::npos) == ".svg")
+			{
+				mScalable = true;
+				retval = initSVGFromMemory((const unsigned char*)data.ptr.get(), data.length);
+			}
+			else
+				retval = initImageFromMemory((const unsigned char*)data.ptr.get(), data.length);
 		}
 		else
-			retval = initImageFromMemory((const unsigned char*)data.ptr.get(), data.length);
+			LOG(LogDebug) << "SVG image not found: " << mPath;
 	}
 	if (!retval)
 	{

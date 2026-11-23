@@ -392,11 +392,20 @@ void GuiMenu::openUISettings()
 		if (enable_filter->getState() != filter_is_enabled) ViewController::get()->ReloadAndGoToStart();
 	});
 
-	// hide start menu in Kid Mode
-	auto disable_start = std::make_shared<SwitchComponent>(mWindow);
-	disable_start->setState(Settings::getInstance()->getBool("DisableKidStartMenu"));
-	s->addWithLabel("DISABLE START MENU IN KID MODE", disable_start);
-	s->addSaveFunc([disable_start] { Settings::getInstance()->setBool("DisableKidStartMenu", disable_start->getState()); });
+	// hide start menu in Kid and/or Kiosk Mode
+	auto disable_start = std::make_shared< OptionListComponent<std::string> >(mWindow, "DISABLE START MENU", false);
+	bool disableKid = Settings::getInstance()->getBool("DisableKidStartMenu");
+	bool disableKiosk = Settings::getInstance()->getBool("DisableKioskStartMenu");
+	disable_start->add("ALWAYS SHOW", "none", !disableKid && !disableKiosk);
+	disable_start->add("DISABLE IN KID MODE", "kid", disableKid && !disableKiosk);
+	disable_start->add("DISABLE IN KIOSK MODE", "kiosk", !disableKid && disableKiosk);
+	disable_start->add("DISABLE IN KID AND KIOSK MODES", "both", disableKid && disableKiosk);
+	s->addWithLabel("DISABLE START MENU", disable_start);
+	s->addSaveFunc([disable_start] {
+		std::string selected = disable_start->getSelected();
+		Settings::getInstance()->setBool("DisableKidStartMenu", selected == "kid" || selected == "both");
+		Settings::getInstance()->setBool("DisableKioskStartMenu", selected == "kiosk" || selected == "both");
+	});
 
 	mWindow->pushGui(s);
 

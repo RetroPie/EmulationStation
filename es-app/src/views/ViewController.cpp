@@ -78,6 +78,7 @@ void ViewController::goToStart()
 void ViewController::ReloadAndGoToStart()
 {
 	mWindow->renderLoadingScreen("Loading...");
+	mWindow->endLoadingScreen();
 	ViewController::get()->reloadAll();
 	ViewController::get()->goToStart();
 }

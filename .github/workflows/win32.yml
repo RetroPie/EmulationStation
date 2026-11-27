@@ -1,6 +1,7 @@
 name: Build ES for Win32
 
 on:
+  push:
   workflow_dispatch:
 
 jobs:
@@ -13,61 +14,72 @@ jobs:
       # Build parameters for CMake
       BUILD_TYPE: Release
       Platform: Win32
+      VCPKG_ARCHIVES_PATH: C:\Users\runneradmin\AppData\Local\vcpkg\archives
 
     defaults:
       run:
         shell: cmd
 
     steps:
+
+      - name: Check-out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
       # Create directories for build (used by CMake) and nuget
       - name: Set up directories
-        working-directory: ${{runner.workspace}}
+        working-directory: ${{github.workspace}}
         run: mkdir build nuget
+
+      - name: Setup Project Cache (save/restore)
+        id: cache-vcpkg-pkg
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{github.workspace}}\vcpkg
+            ${{github.workspace}}\nuget
+            ${{env.VCPKG_ARCHIVES_PATH}}
+            ${{github.workspace}}\build
+            ${{github.workspace}}\build\vcpkg_installed
+          key: vcpkg-pkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}-${{hashFiles('CMakeLists.txt')}}
+          restore-keys: |
+            vcpkg-pkg-${{ runner.os }}-
 
       # Check-out repository under $GITHUB_WORKSPACE
       # https://github.com/actions/checkout
-      - name: Check-out repository
-        uses: actions/checkout@v3
-        with:
-          submodules: true
 
       # Discover location of MSBuild tool and to PATH environment variables
       # https://github.com/microsoft/setup-msbuild
       - name: Locate MSBuild
-        uses: microsoft/setup-msbuild@v1.3.1
+        uses: microsoft/setup-msbuild@v2
 
+      # Setup vcpkg
+      - name: Set up vcpkg from Git
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git ${{ github.workspace }}/vcpkg
+          echo "VCPKG_INSTALLATION_ROOT=${{ github.workspace }}/vcpkg" >> %GITHUB_ENV%
+          call ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.bat
+          echo "${{ github.workspace }}/vcpkg" >> %GITHUB_PATH%
+          call ${{ github.workspace }}/vcpkg/vcpkg integrate install
+          
       # Use NuGet to download the latest libVLC.
       - name: Download libVLC
-        working-directory: ${{runner.workspace}}/nuget
+        working-directory: ${{github.workspace}}\nuget
         run: nuget install -ExcludeVersion VideoLAN.LibVLC.Windows
 
-      # Use vcpkg to download and build the latest cURL
-      - name: Build cURL static library
-        run: vcpkg install curl:x86-windows-static-md
-
-      # Use vcpkg to download and build the latest FreeImage
-      - name: Build FreeImage static library
-        run: vcpkg install freeimage:x86-windows-static-md
-
-      # Use vcpkg to download and build the latest FreeType2
-      - name: Build FreeType2 static library
-        run: vcpkg install freetype:x86-windows-static-md
-
-      # Use vcpkg to download and build the latest SDL2
-      - name: Build SDL2 static library
-        run: vcpkg install sdl2:x86-windows-static-md
-
-      # Use vcpkg to download and build the latest RapidJSON
-      - name: Build RapidJSON static library
-        run: vcpkg install rapidjson:x86-windows-static-md
-
+      # Install VCPKG dependencies
+      - name: Install vcpkg dependencies 
+        working-directory: ${{github.workspace}}
+        run: vcpkg install --triplet x86-windows-static-md
+      
       # Setup environment variables for subsequent steps
       # Note: Forward slashes are used for CMake compatibility
       - name: Set up environment
         run: |
           set VCPKG=%VCPKG_INSTALLATION_ROOT%/installed/x86-windows-static-md
           set "VCPKG=%VCPKG:\=/%"
-          set NUGET=${{runner.workspace}}/nuget
+          set NUGET=${{github.workspace}}/nuget
           set "NUGET=%NUGET:\=/%"
           set VLC_HOME=%NUGET%/VideoLAN.LibVLC.Windows/build/x86
           echo VCPKG=%VCPKG%>> %GITHUB_ENV%
@@ -76,33 +88,28 @@ jobs:
           echo FREEIMAGE_HOME=%VCPKG%>> %GITHUB_ENV%
           echo VLC_HOME=%VLC_HOME%>> %GITHUB_ENV%
           echo RAPIDJSON_INCLUDE_DIRS=%VCPKG%/include>> %GITHUB_ENV%
-          echo CURL_INCLUDE_DIR=%VCPKG%/include>> %GITHUB_ENV%
           echo SDL2_INCLUDE_DIR=%VCPKG%/include/SDL2>> %GITHUB_ENV%
           echo VLC_INCLUDE_DIR=%VLC_HOME%/include>> %GITHUB_ENV%
-          echo CURL_LIBRARY=%VCPKG%/lib/*.lib>> %GITHUB_ENV%
           echo SDL2_LIBRARY=%VCPKG%/lib/manual-link/SDL2main.lib>> %GITHUB_ENV%
-          echo VLC_LIBRARIES=%VLC_HOME%/libvlc*.lib>> %GITHUB_ENV%
+          echo VLC_LIBRARIES=%VLC_HOME%/libvlc.lib;%VLC_HOME%/libvlccore.lib>> %GITHUB_ENV%
           echo VLC_VERSION=3.0.11>> %GITHUB_ENV%
 
       # Use CMake to create Visual Studio project in build folder
       - name: Create Visual Studio project
-        working-directory: ${{runner.workspace}}
+        working-directory: ${{github.workspace}}
         run: cmake ${{github.workspace}}
           -B build
           -A %Platform%
+          -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/vcpkg/scripts/buildsystems/vcpkg.cmake
           -DRAPIDJSON_INCLUDE_DIRS=%RAPIDJSON_INCLUDE_DIRS%
-          -DCURL_INCLUDE_DIR=%CURL_INCLUDE_DIR%
-          -DSDL2_INCLUDE_DIR=%SDL2_INCLUDE_DIR%
           -DVLC_INCLUDE_DIR=%VLC_INCLUDE_DIR%
-          -DCURL_LIBRARY=%CURL_LIBRARY%
-          -DSDL2_LIBRARY=%SDL2_LIBRARY%
           -DVLC_LIBRARIES=%VLC_LIBRARIES%
           -DVLC_VERSION=%VLC_VERSION%
           -DCMAKE_EXE_LINKER_FLAGS=/SAFESEH:NO
-
+          
       # Use CMake to build project
       - name: Build EmulationStation
-        working-directory: ${{runner.workspace}}
+        working-directory: ${{github.workspace}}
         run: cmake --build build --config %BUILD_TYPE%
 
       # Copy all other dependencies into Release folder
@@ -130,7 +137,7 @@ jobs:
       # Uploads artifacts from workflow
       # https://github.com/actions/upload-artifact
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: EmulationStation
           path: |

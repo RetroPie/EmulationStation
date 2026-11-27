@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 64 64" enable-background="new 0 0 64 64" xml:space="preserve">
+<circle id="circle" fill="none" stroke="#FFFFFF" stroke-width="3" cx="32" cy="32" r="30"/>
+<polygon id="analog_up" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round" points="27,14 37,14 32,6.2 "/>
+<polygon id="analog_right" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round" points="50,27 50,37 57.8,32 "/>
+<polygon id="analog_down" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round" points="27,50 37,50 32,57.8 
+	"/>
+<polygon id="analog_left" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round" points="14,27 14,37 6.2,32 "/>
+<circle id="analog_thumb" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round" cx="32" cy="32" r="5"/>
+</svg>

@@ -12,15 +12,19 @@
 #include "SystemData.h"
 #include "components/TextListComponent.h"
 
-GuiGamelistOptions::GuiGamelistOptions(Window* window, SystemData* system) : GuiComponent(window),
+GuiGamelistOptions::GuiGamelistOptions(Window* window, SystemData* system,
+	const std::vector<FileData*>& jumpFiles, std::function<void(int)> jumpCallback)
+	: GuiComponent(window),
 	mSystem(system), mMenu(window, "OPTIONS"), mFromPlaceholder(false), mFiltersChanged(false),
-	mJumpToSelected(false), mMetadataChanged(false)
+	mJumpToSelected(false), mMetadataChanged(false),
+	mJumpFiles(jumpFiles), mJumpCallback(jumpCallback)
 {
 	addChild(&mMenu);
 
 	// check it's not a placeholder folder - if it is, only show "Filter Options"
-	FileData* file = getGamelist()->getCursor();
-	mFromPlaceholder = file->isPlaceHolder();
+	// When jump files are provided (e.g. from search popup), treat as non-placeholder
+	FileData* file = mJumpFiles.empty() ? getGamelist()->getCursor() : mJumpFiles.front();
+	mFromPlaceholder = mJumpFiles.empty() ? file->isPlaceHolder() : false;
 	ComponentListRow row;
 
 	if (!mFromPlaceholder) {
@@ -29,10 +33,14 @@ GuiGamelistOptions::GuiGamelistOptions(Window* window, SystemData* system) : Gui
 		std::string currentSort = mSystem->getRootFolder()->getSortDescription();
 		std::string reqSort = FileSorts::SortTypes.at(0).description;
 
-		// "jump to letter" menuitem only available (and correct jumping) on sort order "name, asc"
-		if (currentSort == reqSort) {
+		// "jump to letter" menuitem available when sort is "name, asc" OR when override files provided
+		if (currentSort == reqSort || !mJumpFiles.empty()) {
+			const std::vector<FileData*>& jumpList = mJumpFiles.empty()
+				? getGamelist()->getCursor()->getParent()->getChildrenListToDisplay()
+				: mJumpFiles;
+
 			bool outOfRange = false;
-			char curChar = (char)toupper(getGamelist()->getCursor()->getSortName()[0]);
+			char curChar = (char)toupper(jumpList.empty() ? '!' : jumpList.front()->getSortName()[0]);
 			// define supported character range
 			// this range includes all numbers, capital letters, and most reasonable symbols
 			char startChar = '!';
@@ -46,11 +54,9 @@ GuiGamelistOptions::GuiGamelistOptions(Window* window, SystemData* system) : Gui
 			mJumpToLetterList = std::make_shared<LetterList>(mWindow, "JUMP TO ...", false);
 			for (char c = startChar; c <= endChar; c++)
 			{
-				// check if c is a valid first letter in current list
-				const std::vector<FileData*>& files = getGamelist()->getCursor()->getParent()->getChildrenListToDisplay();
-				for (auto file : files)
+				for (auto f : jumpList)
 				{
-					char candidate = (char)toupper(file->getSortName()[0]);
+					char candidate = (char)toupper(f->getSortName()[0]);
 					if (c == candidate)
 					{
 						mJumpToLetterList->add(std::string(1, c), c, (c == curChar) || outOfRange);
@@ -277,10 +283,10 @@ void GuiGamelistOptions::openMetaDataEd()
 void GuiGamelistOptions::jumpToLetter()
 {
 	char letter = mJumpToLetterList->getSelected();
-	IGameListView* gamelist = getGamelist();
 
-	// this is a really shitty way to get a list of files
-	const std::vector<FileData*>& files = gamelist->getCursor()->getParent()->getChildrenListToDisplay();
+	const std::vector<FileData*>& files = mJumpFiles.empty()
+		? getGamelist()->getCursor()->getParent()->getChildrenListToDisplay()
+		: mJumpFiles;
 
 	long min = 0;
 	long max = (long)files.size() - 1;
@@ -304,7 +310,10 @@ void GuiGamelistOptions::jumpToLetter()
 			break; //exact match found
 	}
 
-	gamelist->setCursor(files.at(mid));
+	if (mJumpCallback)
+		mJumpCallback((int)mid);
+	else
+		getGamelist()->setCursor(files.at(mid));
 
 	// flag to force default sort order "name, asc", if user changed the sortorder in the options dialog
 	mJumpToSelected = true;

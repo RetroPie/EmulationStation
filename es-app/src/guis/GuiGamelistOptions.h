@@ -6,6 +6,8 @@
 #include "components/OptionListComponent.h"
 #include "FileData.h"
 #include "GuiComponent.h"
+#include <functional>
+#include <vector>
 
 class IGameListView;
 class SystemData;
@@ -13,7 +15,9 @@ class SystemData;
 class GuiGamelistOptions : public GuiComponent
 {
 public:
-	GuiGamelistOptions(Window* window, SystemData* system);
+	GuiGamelistOptions(Window* window, SystemData* system,
+		const std::vector<FileData*>& jumpFiles = {},
+		std::function<void(int)> jumpCallback = nullptr);
 	virtual ~GuiGamelistOptions();
 
 	virtual bool input(InputConfig* config, Input input) override;
@@ -43,6 +47,9 @@ private:
 	bool mFiltersChanged;
 	bool mJumpToSelected;
 	bool mMetadataChanged;
+
+	std::vector<FileData*> mJumpFiles;
+	std::function<void(int)> mJumpCallback;
 };
 
 #endif // ES_APP_GUIS_GUI_GAME_LIST_OPTIONS_H

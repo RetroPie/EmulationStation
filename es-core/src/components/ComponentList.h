@@ -46,7 +46,7 @@ struct ComponentListRow
 class ComponentList : public IList<ComponentListRow, void*>
 {
 public:
-	ComponentList(Window* window);
+	ComponentList(Window* window, ListLoopType loop_type = LIST_NEVER_LOOP);
 
 	void addRow(const ComponentListRow& row, bool setCursorHere = false);
 

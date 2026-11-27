@@ -21,6 +21,10 @@
 #else // _WIN32
 #include <dirent.h>
 #include <unistd.h>
+#if defined(__FreeBSD__)
+#define lstat64 lstat
+#define stat64 stat
+#endif // __FreeBSD__
 #endif // _WIN32
 
 //////////////////////////////////////////////////////////////////////////

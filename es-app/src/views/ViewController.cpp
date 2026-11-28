@@ -1,4 +1,5 @@
 #include "views/ViewController.h"
+#include "CollectionSystemManager.h"
 
 #include "animations/Animation.h"
 #include "animations/LambdaAnimation.h"
@@ -351,6 +352,9 @@ ViewController::GameListViewType ViewController::getGameListViewType()
 
 std::shared_ptr<IGameListView> ViewController::getGameListView(SystemData* system)
 {
+	// bundled custom collections are displayed by the bundle's view, never by one of their own
+	system = CollectionSystemManager::get()->getSystemToView(system);
+
 	//if we already made one, return that one
 	auto exists = mGameListViews.find(system);
 	if(exists != mGameListViews.cend())
@@ -570,6 +574,9 @@ void ViewController::reloadAll(bool themeChanged)
 	std::map<SystemData*, int> viewportTopMap;
 	for(auto it = mGameListViews.cbegin(); it != mGameListViews.cend(); it++)
 	{
+		// bundled custom collections are displayed by the bundle's view, don't restore their old cursor onto it
+		if (CollectionSystemManager::get()->getSystemToView(it->first) != it->first)
+			continue;
 		cursorMap[it->first] = it->second->getCursor();
 		viewportTopMap[it->first] = it->second->getViewportTop();
 	}

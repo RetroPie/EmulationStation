@@ -191,6 +191,8 @@ namespace Renderer
 
 		setViewport(viewport);
 		setProjection(projection);
+		setMatrix(Transform4x4f::Identity());
+		drawRect(0.0f, 0.0f, getScreenWidth(), getScreenHeight(), 0x000000FF, 0x000000FF);
 		swapBuffers();
 
 		return true;
